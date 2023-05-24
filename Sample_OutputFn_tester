@@ -1,0 +1,13 @@
+
+
+
+
+
+int32_t varElimOp = VAR_ELIMINATION_TYPE_SUM ;
+ARE::ThreadPoolThreadContext cntx ; // fill in _MB, etc data members...
+
+if (nullptr == cntx._MB || cntx._nSamples <= 0 || cntx._WorkDone)
+return 1 ;
+int32_t res = cntx._MB->SampleOutputFunction(varElimOp, cntx._nSamples, cntx._idx, cntx._nFeaturesPerSample, cntx._Samples_signature, cntx._Samples_values, cntx._min_value, cntx._max_value, cntx._sample_sum) ;
+cntx._WorkDone = true ;
+

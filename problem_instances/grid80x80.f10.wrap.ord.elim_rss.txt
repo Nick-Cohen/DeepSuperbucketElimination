@@ -1,0 +1,6 @@
+#filename=/home/sakshia1/myresearch/GDBE/BucketElimination-mac-version/BE-sampling-project/3testproblems/grid80x80.f10.wrap.uai, vofile=/home/sakshia1/myresearch/GDBE/BucketElimination-mac-version/BE-sampling-project/3testproblems/grid80x80.f10.wrap.ord.elim, nRandomPick=8, eRandomPick=0.5, nRunsToDo=1000, timelimit=3600000, nThreads=63, doSCC=Y
+4
+227 213 64.7215
+781 206 62.7112
+826 200 60.8148
+835 199 60.8081

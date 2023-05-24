@@ -1,0 +1,35 @@
+[  4%] Building CXX object CMakeFiles/BESampling.dir/BESampling.cpp.o
+Scanning dependencies of target BESampling
+[  4%] Building CXX object CMakeFiles/BESampling.dir/pch.cpp.o
+[  8%] Building CXX object CMakeFiles/BESampling.dir/BESampling.cpp.o
+[ 13%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Problem/Function.cpp.o
+Scanning dependencies of target BESampling
+[  4%] Building CXX object CMakeFiles/BESampling.dir/BESampling.cpp.o
+[  8%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Problem/Function.cpp.o
+[ 13%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Problem/Globals.cpp.o
+[ 17%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Problem/Problem.cpp.o
+[ 21%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Problem/Workspace.cpp.o
+[ 26%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/BE/Bucket.cpp.o
+[ 30%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/BE/MBEworkspace.cpp.o
+Scanning dependencies of target BESampling
+[  4%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/BE/MBEworkspace.cpp.o
+[  8%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/BE/MiniBucket.cpp.o
+[ 13%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/BE/MiniBucket-NN.cpp.o
+Scanning dependencies of target BESampling
+[  4%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Utils/AVLtreeInt64.cpp.o
+[  9%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Utils/AVLtreeObjects.cpp.o
+[ 13%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Utils/AVLtreeSimple.cpp.o
+[ 18%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Utils/FnExecutionThread.cpp.o
+[ 22%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Utils/MiscUtils.cpp.o
+[ 27%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Utils/Mutex.cpp.o
+[ 31%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/Utils/Sort.cxx.o
+[ 36%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/CVO/Graph.cpp.o
+[ 40%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/CVO/Graph_MinFillOrderComputation.cpp.o
+[ 45%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/CVO/Graph_RemoveRedundantFillEdges.cpp.o
+[ 50%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/CVO/VariableOrderComputation.cpp.o
+Scanning dependencies of target BESampling
+[  4%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/CVO/VariableOrderComputation.cpp.o
+Scanning dependencies of target BESampling
+[  4%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/CVO/VariableOrderComputation.cpp.o
+Scanning dependencies of target BESampling
+[  4%] Building CXX object CMakeFiles/BESampling.dir/home/cohenn1/SDBE/Super_Buckets/ARP/CVO/VariableOrderComputation.cpp.o

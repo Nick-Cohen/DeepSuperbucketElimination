@@ -1,0 +1,3 @@
+#filename=/home/sakshia1/myresearch/GDBE/BucketElimination-mac-version/BE-sampling-project/3testproblems/1aie.uai, vofile=/home/sakshia1/myresearch/GDBE/BucketElimination-mac-version/BE-sampling-project/3testproblems/1aie.uai.ord.elim, nRandomPick=8, eRandomPick=0.5, nRunsToDo=1000, timelimit=3600000, nThreads=63, doSCC=Y
+1
+0 6 7.88236
