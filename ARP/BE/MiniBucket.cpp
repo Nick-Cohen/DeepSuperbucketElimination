@@ -703,8 +703,9 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 
 	// TODO : if _OutputFunction is of type FunctionNN, then do .....
 	ARE::FunctionNN *fNN = dynamic_cast<ARE::FunctionNN *>(_OutputFunction) ;
-
-
+	if (nullptr != fNN) {
+		return ComputeOutputFunction_NN(varElimOperator, FU, fU, WMBEweight) ;
+		}
 
 	// if (NULL != fNN) {
 // #ifdef INCLUDE_TORCH

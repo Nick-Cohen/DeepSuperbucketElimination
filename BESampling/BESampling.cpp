@@ -9,7 +9,6 @@
 #include <limits>
 
 #include <iostream>
-#include "NN/NNConfig.h"
 #if defined WINDOWS || _WINDOWS
 #include <process.h>    /* _beginthread, _endthread */
 #else
@@ -21,6 +20,11 @@
 #include "BE/Bucket.hxx"
 #include "BE/MBEworkspace.hxx"
 #include "Utils/ThreadPool.hxx"
+
+#include <NNConfig.h>
+Config_NN global_config;
+
+static MTRand RNG ;
 
 #ifdef _MSC_VER
 #ifndef _WIN64 
@@ -55,12 +59,6 @@ double get_cpu_time() {
 	return (double)clock() / CLOCKS_PER_SEC;
 }
 #endif // WINDOWS
-
-#include <Config.h>
-
-Config_NN global_config;
-
-static MTRand RNG ;
 
 double logabsdiffexp10(double num1, double num2) {
 	if (num1 == num2) {
@@ -249,7 +247,6 @@ int32_t main(int32_t argc, char* argv[])
 	printf("\nproblem_filename = %s, order file = %s", problem_filename.c_str(), vo_filename.c_str()) ;
 	printf("\niB = %d, EClimit = %d", iB, EClimit) ;
 	printf("\nProblem loaded : nVars=%d minK=%d maxK=%d avgK=%g", p.N(), p.minK(), p.maxK(), p.avgK()) ;
-	fflush(stdout) ;
 	if (iB > p.N())
 		iB = p.N() ;
 	if (vQuery >= 0 && vQuery < p.N()) 
@@ -349,7 +346,7 @@ int32_t main(int32_t argc, char* argv[])
 	ws.MaxSpaceAllowed_Log10() = 10.0 ; // 10GB
 	int32_t iBoundMin = 2 ;
 	int32_t ib, nBP, maxDPB ; double spaceused ;
-	bool noPartitioning = true ; // This forces no MB partitioning, exactly 1 per bucket
+	bool noPartitioning = true ;
 	ws.MBoutputFnTypeWhenOverIBound() = MB_outputfn_type_NN ; // if MB output fn is too large, use NN to approximate it...
 	if (iB < 0) {
 		int64_t tIBfindS = ARE::GetTimeInMilliseconds() ;
@@ -370,8 +367,6 @@ int32_t main(int32_t argc, char* argv[])
 			return 62 ;
 			}
 		}
-	printf("\nMB partitioning done.") ;
-	fflush(stdout) ;
 
 	// compute MBE induced_width; this takes into account actual i-bound
 	int32_t resMBEindw = ws.ComputeMaxNumVarsInBucket(true) ;
@@ -387,7 +382,6 @@ int32_t main(int32_t argc, char* argv[])
 	printf("\nmaxSB nVars is %d", nullptr != maxSB ? (int) maxSB->nVars() : -1) ;
 	fflush(stdout) ;
 	
-
 	// print some stats
     // printf("\n*************************");
     // printf("I am almost successful");
@@ -430,7 +424,8 @@ int32_t main(int32_t argc, char* argv[])
 		int32_t res = cntx._MB->SampleOutputFunction(varElimOp, cntx._nSamples, cntx._idx, cntx._nFeaturesPerSample, cntx._Samples_signature, cntx._Samples_values, cntx._min_value, cntx._max_value, cntx._sample_sum) ;
 		{ // check samples
 			// N is number of variables
-			int32_t assignment[p.N()] ;
+//			int32_t assignment[N] ;
+			std::unique_ptr<int32_t[]> assignment(new int32_t[p.N()]) ;
 			for (int32_t iS = 0; iS < cntx._nSamples; ++iS) {
 				int16_t *sample_signature = cntx._Samples_signature.get() + iS * maxSBmb0outputfn.N() ;
 				// fill in assignment
@@ -439,7 +434,7 @@ int32_t main(int32_t argc, char* argv[])
 					assignment[v] = sample_signature[iV] ;
 					}
 				// value of the maxSBmb0outputfn corresponding to the given assignment...
-				double fn_value_of_the_assignment = maxSBmb0outputfn.TableEntryExNativeAssignment(assignment, p.K()) ;
+				double fn_value_of_the_assignment = maxSBmb0outputfn.TableEntryExNativeAssignment(assignment.get(), p.K()) ;
 				// check if values match!
 				double d = fabs(fn_value_of_the_assignment - ((double) cntx._Samples_values[iS])) ;
 				// 0.00000000000000000000123 has 3 digits of precision --> 1.23e-21
@@ -451,13 +446,13 @@ int32_t main(int32_t argc, char* argv[])
 		}
 		// cntx._WorkDone = true ;
 		// Could loop through all samples to check that they match the correct OutputFunction
-		// printf("\nSampleOutputFunction: res = %d, nSamples = %d, num features / sample = %d", res, (int)cntx._nSamples, (int)cntx._nFeaturesPerSample);
-		// for (int i = 0; i < 10 && i < (int)cntx._nSamples; i++) {
-		// 	printf("\n Sample Signature is: ");
-		// 	for (int j = 0; j < (int)cntx._nFeaturesPerSample; j++)
-		// 		printf("%d ", cntx._Samples_values[i*((int)cntx._nFeaturesPerSample)+j]);
-		// 	printf("   Value%d: %f", i, (float)cntx._Samples_values[i]);
-		// }
+		printf("\nSampleOutputFunction: res = %d, nSamples = %d, num features / sample = %d", res, (int)cntx._nSamples, (int)cntx._nFeaturesPerSample);
+		for (int i = 0; i < 10 && i < (int)cntx._nSamples; i++) {
+			printf("\n Sample Signature is: ");
+			for (int j = 0; j < (int)cntx._nFeaturesPerSample; j++)
+				printf("%d ", cntx._Samples_values[i*((int)cntx._nFeaturesPerSample)+j]);
+			printf("   Value%d: %f", i, (float)cntx._Samples_values[i]);
+		}
 		}
 
 	printf("\n") ;
