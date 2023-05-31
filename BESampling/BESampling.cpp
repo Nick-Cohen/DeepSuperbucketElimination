@@ -409,7 +409,10 @@ int32_t main(int32_t argc, char* argv[])
 	double BEvalue_w = ws.CompleteEliminationResult(approx_bound) ;
 	printf("\nwMBE done; result=%g runtime=%lldsec tablesmemory=%lld bytes", BEvalue_w, tElapsed, (int64_t) sizeof(double)*totalSumOutputFunctionsNumEntries) ;
 
-	if (nullptr != maxSB ? maxSB->nMiniBuckets() > 0 : false) {
+
+	// This code below is for testing
+	bool test_sampling = false ;
+	if (test_sampling && nullptr != maxSB ? maxSB->nMiniBuckets() > 0 : false) {
 		int32_t varElimOp = VAR_ELIMINATION_TYPE_SUM ;
 		ARE::ThreadPoolThreadContext cntx ; // fill in _MB, etc data members...
 		cntx._MB = maxSB->MiniBuckets()[0] ;

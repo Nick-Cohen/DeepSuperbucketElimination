@@ -18,7 +18,7 @@ typedef struct Config{
     std::string out_file, out_file2;
 
     float avg_val_mse=0.0,avg_test_mse=0.0, avg_val_w_mse=0.0,avg_test_w_mse=0.0 ;
-    std::string network="masked_net";
+    std::string network="masked_net"; // Probably want to rename this to zero_mask or something
     std::string s_method="is";
     int width_problem = 20;
     float loss_weight = 1;

@@ -37,7 +37,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 {
    // std::cout<<"in minibucket-NN ----";
     auto start = std::chrono::high_resolution_clock::now();
-     int32_t i, k;
+    int32_t i, k;
 
     bool convert_exp=true;
     if(0 == global_config.network.compare("net"))
@@ -226,126 +226,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
     int burnTime=nSamples/10;
     float running_sum=0;
 
-    if(0==global_config.s_method.compare("rs")) {
-        for (i = 0; i < burnTime; ++i) {
-            ARE_Function_TableType V = bews->VarEliminationDefaultValue();
-            for (int32_t j = 0; j < fNN->N(); ++j) {
-                int32_t v = fNN->Argument(j);
-                int32_t domain_size_of_v = problem->K(v);
-//            printf("%d ", domain_size_of_v);
-                int32_t value = RNG.randInt(domain_size_of_v - 1);
-                vals[j] = value;
-            }
-            // enumerate all current variable values; compute bucket value for each configuration and combine them using elimination operator...
-            //ARE_Function_TableType V = bews->VarEliminationDefaultValue() ;
-            for (int32_t j = 0; j < k; ++j) {
-                vals[fNN->N()] = j;
-                ARE_Function_TableType v = bews->FnCombinationNeutralValue();
-                // compute value for this configuration : fNN argument assignment + _V=j
-                for (int32_t l = 0; l < _nFunctions; ++l) {
-                    ARE::Function *f = _Functions[l];
-                    if (NULL == f) continue;
-                    double fn_v = f->TableEntryEx(vals,
-                                                  problem->K()); //This would make us problem specifially when privious ones be NN
-                    bews->ApplyFnCombinationOperator(v, fn_v);
-                }
-                ApplyVarEliminationOperator(varElimOperator, problem->FunctionsAreConvertedToLogScale(), V, v);
-            }
-            bews->ApplyFnCombinationOperator(V, const_factor);
-
-            if (V > fNN->ln_max_value)
-                fNN->ln_max_value = V;
-            running_sum += V;
-        }
-    }
-    int c1=0;
-    if(0==global_config.s_method.compare("rs")){
-
-        double a,u;
-        printf("Rejection Sampling -----");
-        for ( i = 0 ; i < nSamples ; ++i) {
-            ARE_Function_TableType V = bews->VarEliminationDefaultValue() ;
-            do{
-                for (int32_t j = 0 ; j < fNN->N() ; ++j) {
-                    int32_t v = fNN->Argument(j) ;
-                    int32_t domain_size_of_v = problem->K(v) ;
-                    int32_t value = RNG.randInt(domain_size_of_v-1) ;
-                    vals[j] = value ;
-                }
-                // enumerate all current variable values; compute bucket value for each configuration and combine them using elimination operator...
-
-                for (int32_t j = 0 ; j < k ; ++j) {
-                    vals[fNN->N()] = j ;
-                    ARE_Function_TableType v = bews->FnCombinationNeutralValue() ;
-                    // compute value for this configuration : fNN argument assignment + _V=j
-                    for (int32_t l = 0 ; l < _nFunctions ; ++l) {
-                        ARE::Function *f = _Functions[l];
-                        if (NULL == f) continue ;
-                        double fn_v = f->TableEntryEx(vals, problem->K()); //This would make us problem specifially when privious ones be NN
-                        bews->ApplyFnCombinationOperator(v, fn_v) ;
-                    }
-                    ApplyVarEliminationOperator(varElimOperator, problem->FunctionsAreConvertedToLogScale(), V, v) ;
-                }
-                bews->ApplyFnCombinationOperator(V, const_factor) ;
-                //save the samples in arrays to make them tensors
-                //       if(i%1000==0)
-                //           printf("i : %d", i);
-                c1++;
-                running_sum+=V;
-                if(V > fNN->ln_max_value){
-                    fNN->ln_max_value = V;
-                }
-                //a = V/fNN->ln_max_value;
-                //a = (V/running_sum)*(burnTime+c1);
-                a = V/fNN->ln_max_value;
-                //std::cout<<V/running_sum << "\t"<< a<<"\t"<<c1<< "\n";
-                u = ((double) rand() / (RAND_MAX));
-            }while(a<u);
-
-
-            if(i<n_train_samples)
-            {
-                for(int32_t m = 0 ; m < fNN->N() ; ++m){
-                    int32_t v = fNN->Argument(m);
-                    int32_t domain_size_of_v = problem->K(v);
-                    train_samples[i][m] = 2*(vals[m]/domain_size_of_v) - 1; //vals[fNN->ArgumentsPermutationList()[m]]; // vals[fnn->_Argument]
-                }
-                if (convert_exp){
-                    V = exp(V);
-                }
-                if (V != zero) {
-                    count_non_zero++;
-                }
-                train_sample_values[i] = V; //should be V
-                if (V < fNN->ln_min_value)
-                    fNN->ln_min_value = V;
-            }
-            else if(i>=n_train_samples && i<n_train_samples+n_val_samples){
-                for(int32_t m = 0 ; m < fNN->N() ; ++m){
-                    int32_t v = fNN->Argument(m);
-                    int32_t domain_size_of_v = problem->K(v);
-                    val_samples[i-n_train_samples][m] = 2*(vals[m]/domain_size_of_v) - 1;
-                    //vals[m]; //vals[fNN->ArgumentsPermutationList()[m]]; // vals[fnn->_Argument]
-                }
-                if (convert_exp){
-                    V = exp(V);
-                }
-                val_sample_values[i-n_train_samples] = V; //should be V
-            }
-            else if(i>=n_train_samples + n_val_samples && i<n_train_samples+n_val_samples + n_test_samples)  {
-                for(int32_t m = 0 ; m < fNN->N() ; ++m){
-                    int32_t v = fNN->Argument(m);
-                    int32_t domain_size_of_v = problem->K(v);
-                    test_samples[i-n_train_samples-n_val_samples][m] = 2*(vals[m]/domain_size_of_v) - 1; //vals[fNN->ArgumentsPermutationList()[m]]; // vals[fnn->_Argument]
-                }
-                if (convert_exp){
-                    V = exp(V);
-                }
-                test_sample_values[i-n_train_samples-n_val_samples] = V; //should be V
-            }
-        }
-    }
-    else {
+        // TODO Below here, edit to use the superbucket sampling
         printf("Uniform Sampling -----");
 
         //ofstream myfile ("bucket_samples_level_" + std::to_string(this->Workspace()->count_Train) + ".txt",std::ios_base::app);
@@ -466,6 +347,8 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
     std::ofstream f;
     f.open(o_file,std::ios_base::app);
     printf("sampling finished-----");
+
+    // End of sampling portion
 
     if(count_non_zero<0.001*nSamples)
     {
