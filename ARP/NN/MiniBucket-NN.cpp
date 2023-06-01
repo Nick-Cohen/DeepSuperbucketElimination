@@ -49,7 +49,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	bool data_is_log_space = Problem()->FunctionsAreConvertedToLogScale() ;
 
 	// generate samples...
-	int64_t nSamples = 1000 ;
+	int64_t nSamples = 100 ;
 	int32_t nFeaturesPerSample = -1 ;
 	std::unique_ptr<int16_t[]> samples_signature ; 
 	std::unique_ptr<float[]> samples_values ;
