@@ -49,8 +49,8 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	bool data_is_log_space = Problem()->FunctionsAreConvertedToLogScale() ;
 
 	// generate samples...
-	int64_t nSamples = 100 ;
-	int32_t nFeaturesPerSample = -1 ;
+	int64_t nSamples = 1000 ;
+	int32_t nFeaturesPerSample = -1 ; //
 	std::unique_ptr<int16_t[]> samples_signature ; 
 	std::unique_ptr<float[]> samples_values ;
 	float samples_min_value, samples_max_value, samples_sum ;
@@ -84,6 +84,9 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		fwrite("\n</samples>", 1, 11, fp) ;
 		fclose(fp) ;
 	}
+
+	// 2023-06-01 temp : quit after saving samples...
+	exit(102) ;
 
 /*
 
