@@ -70,7 +70,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		std::string s ;
 		FILE *fp = fopen(fn, "w") ;
 		fwrite("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", 1, 38, fp) ;
-		sprintf(buf, "\n<samples n=\"%d\" nFeaturesPerSample=\"%d\" datainlogspace=\"%c\">", (int) nSamples, (int) nFeaturesPerSample, data_is_log_space ? 'Y' : 'N') ; fwrite(buf, 1, strlen(buf), fp) ;
+		sprintf(buf, "\n<samples n=\"%d\" nFeaturesPerSample=\"%d\" datainlogspace=\"%c\" min=\"%g\" max=\"%g\" sum=\"%g\">", (int) nSamples, (int) nFeaturesPerSample, (char) data_is_log_space ? 'Y' : 'N', (double) samples_min_value, (double) samples_max_value, (double) samples_sum) ; fwrite(buf, 1, strlen(buf), fp) ;
 		for (int32_t iS = 0 ; iS < nSamples ; ++iS) {
 			int16_t *sample_signature = samples_signature.get() + iS * nFeaturesPerSample ;
 			s = "\n   <sample signature=\"" ;
