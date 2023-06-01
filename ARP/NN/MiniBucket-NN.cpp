@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <exception>
-#include "NNConfig.h"
 #include <chrono>
+#include <random>
 
 #include <Sort.hxx>
 #include <Function.hxx>
@@ -14,7 +14,7 @@
 #include "Utils/MersenneTwister.h"
 
 #include <Function-NN.hxx>
-
+#include "NNConfig.h"
 #include "DATA_SAMPLES.h"
 
 //#include <iostream> //delete
@@ -34,12 +34,59 @@ double fRand(double fMin, double fMax)
 }
 
 
-
-    
 //    int32_t res = cntx._MB->SampleOutputFunction(varElimOp, cntx._nSamples, cntx._idx, cntx._nFeaturesPerSample, cntx._Samples_signature, cntx._Samples_values, cntx._min_value, cntx._max_value, cntx._sample_sum) ;
 
 int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimOperator, ARE::Function *FU, ARE::Function *fU, double WMBEweight)
 {
+    MBEworkspace *bews = dynamic_cast<MBEworkspace*>(_Workspace) ;
+    if (NULL == bews)
+        return ERRORCODE_generic ;
+    ARE::ARP *problem = bews->Problem() ;
+    if (NULL == problem)
+        return ERRORCODE_generic ;
+	int32_t varElimOp = bews->VarEliminationType() ;
+
+	bool data_is_log_space = Problem()->FunctionsAreConvertedToLogScale() ;
+
+	// generate samples...
+	int64_t nSamples = 1000 ;
+	int32_t nFeaturesPerSample = -1 ;
+	std::unique_ptr<int16_t[]> samples_signature ; 
+	std::unique_ptr<float[]> samples_values ;
+	float samples_min_value, samples_max_value, samples_sum ;
+	{
+		std::random_device rd ;
+		uint32_t seed = rd() ;
+		int32_t resSampling = SampleOutputFunction(varElimOp, nSamples, seed, nFeaturesPerSample, samples_signature, samples_values, samples_min_value, samples_max_value, samples_sum) ;
+	}
+
+	// write samples into xml file...
+	const char *fn = "samples.xml" ;
+	{
+		std::unique_ptr<char[]> sBUF(new char[4096]) ;
+		if (nullptr == sBUF) 
+			return 1 ;
+		char *buf = sBUF.get() ;
+		std::string s ;
+		FILE *fp = fopen(fn, "w") ;
+		fwrite("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", 1, 38, fp) ;
+		sprintf(buf, "\n<samples n=\"%d\" nFeaturesPerSample=\"%d\" datainlogspace=\"%c\">", (int) nSamples, (int) nFeaturesPerSample, data_is_log_space ? 'Y' : 'N') ; fwrite(buf, 1, strlen(buf), fp) ;
+		for (int32_t iS = 0 ; iS < nSamples ; ++iS) {
+			int16_t *sample_signature = samples_signature.get() + iS * nFeaturesPerSample ;
+			s = "\n   <sample signature=\"" ;
+			for (int32_t iSig = 0 ; iSig < nFeaturesPerSample ; ++iSig) {
+				if (iSig > 0) s += ';' ;
+				sprintf(buf, "%d", (int) sample_signature[iSig]) ; s += buf ;
+				}
+			sprintf(buf, "\" value=\"%g\"/>", (double) samples_values[iS]) ; s += buf ;
+			fwrite(s.c_str(), 1, s.length(), fp) ;
+			}
+		fwrite("\n</samples>", 1, 11, fp) ;
+		fclose(fp) ;
+	}
+
+/*
+
    // std::cout<<"in minibucket-NN ----";
     auto start = std::chrono::high_resolution_clock::now();
     int32_t i, k;
@@ -59,12 +106,6 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
     if (NULL == fNN)
         return 1 ;
 
-    MBEworkspace *bews = dynamic_cast<MBEworkspace*>(_Workspace) ;
-    if (NULL == bews)
-        return ERRORCODE_generic ;
-    ARE::ARP *problem = bews->Problem() ;
-    if (NULL == problem)
-        return ERRORCODE_generic ;
 	if (_nFunctions > 0) {
 		if (0 == _SortedSignature.size()) {
 			if (0 != ComputeSignature()) 
@@ -275,21 +316,6 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
             //    fNN->ln_max_value = V;
             //}
             c1++;
-            /*
-            if (myfile.is_open()) {
-                for (int32_t m = 0; m < fNN->N(); ++m) {
-                    myfile << vals[m] << "\t";
-                }
-
-                if (convert_exp) {
-                    myfile << exp(V) << std::endl;
-                }
-                else {
-                    myfile << V << std::endl;
-                }
-                //myfile.close();
-            }
-            */
 
             if (i < n_train_samples) {
                 for (int32_t m = 0; m < fNN->N(); ++m) {
@@ -472,6 +498,9 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
     printf(" TableEntryEx Time: %f Count: %d Average: %f\n", this->Workspace()->time_TableEntryEx, this->Workspace()->count_TableEntryEx, this->Workspace()->time_TableEntryEx / this->Workspace()->count_TableEntryEx);
     printf(" Train Time: %f Count: %d Average: %f\n", this->Workspace()->time_Train, this->Workspace()->count_Train, this->Workspace()->time_Train / this->Workspace()->count_Train);
     printf("Bucket number ---- %d", _V);
+
+*/
+
     return 0 ;
 }
 
