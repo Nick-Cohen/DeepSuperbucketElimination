@@ -697,7 +697,72 @@ done_with_this_elim_config :
 }
 
 
-int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOperator, ARE::Function *FU, ARE::Function *fU, double WMBEweight)
+int32_t BucketElimination::MiniBucket::GenerateSamplesXmlFilename(
+	const char *sSuffix, std::string & fn, std::string & sPrefix, std::string & sPostFix, 
+	int32_t nSamples, double samples_min_value, double samples_max_value, double samples_sum)
+{
+	MBEworkspace *bews = dynamic_cast<MBEworkspace*>(_Workspace) ;
+	if (NULL == bews)
+		return ERRORCODE_generic ;
+	ARE::ARP *problem = bews->Problem() ;
+	if (NULL == problem)
+		return ERRORCODE_generic ;
+
+	std::unique_ptr<char[]> sBUF(new char[1024]) ;
+	if (nullptr == sBUF) 
+		return 1 ;
+	char *buf = sBUF.get() ;
+	std::string s ;
+
+	bool data_is_log_space = problem->FunctionsAreConvertedToLogScale() ;
+
+	fn = "samples-" ;
+	// file name = list of vars being eliminated...
+	for (int32_t i = 0 ; i < _Vars.size() ; ++i) {
+		if (i > 0) fn += ';' ;
+		sprintf(buf, "%d", (int) _Vars[i]) ;
+		fn += buf ;
+		}
+	if (nullptr != sSuffix) 
+		fn += sSuffix ;
+	fn += ".xml" ;
+
+	// generate scope and domain size lists
+	if (nullptr != _OutputFunction) {
+		s = " outputfnscope=\"" ;
+		for (int32_t i = 0 ; i < _OutputFunction->N() ; ++i) {
+			if (i > 0) s += ';' ;
+			sprintf(buf, "%d", (int) _OutputFunction->Argument(i)) ;
+			s += buf ;
+			}
+		s += "\" outputfnvariabledomainsizes=\"" ;
+		for (int32_t i = 0 ; i < _OutputFunction->N() ; ++i) {
+			if (i > 0) s += ';' ;
+			sprintf(buf, "%d", (int) problem->K(_OutputFunction->Argument(i))) ;
+			s += buf ;
+			}
+		s += '\"' ;
+		}
+	sPrefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" ;
+	int32_t nFeaturesPerSample = _OutputFunction->N() ;
+	sprintf(buf, "\n<samples n=\"%d\" nFeaturesPerSample=\"%d\"%s datainlogspace=\"%c\"", (int) nSamples, (int) nFeaturesPerSample, s.c_str(), (char) data_is_log_space ? 'Y' : 'N') ;
+	sPrefix += buf ;
+	if (samples_min_value < 1.0e+128) {
+		sprintf(buf, " min=\"%g\"", (double) samples_min_value) ; sPrefix += buf ; }
+	if (samples_max_value < 1.0e+128) {
+		sprintf(buf, " max=\"%g\"", (double) samples_max_value) ; sPrefix += buf ; }
+	if (samples_sum < 1.0e+128) {
+		sprintf(buf, " sum=\"%g\"", (double) samples_sum) ; sPrefix += buf ; }
+	sPrefix += '>' ;
+
+	// sPostFix
+	sPostFix = "\n</samples>" ;
+
+	return 0 ;
+}
+
+
+int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOperator, bool ResultToFile, ARE::Function *FU, ARE::Function *fU, double WMBEweight)
 {
 	int32_t i, j, k ;
 
@@ -750,6 +815,11 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 		return 0 ;
 		}
 
+	std::unique_ptr<char[]> sBUF(new char[1024]) ;
+	if (nullptr == sBUF) 
+		return 1 ;
+	char *buf = sBUF.get() ;
+
 	OutputFN.ComputeTableSize() ;
 	int32_t nA = OutputFN.N() ;
 //	if (0 == nA) 
@@ -757,7 +827,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 	if (_SortedSignature.size() != nA + elimVars.size()) 
 		return ERRORCODE_generic ;
 
-	if (nA > 0) {
+	if (nA > 0 && ! ResultToFile) { // if result goes to file, don't need table...
 		if (0 != OutputFN.AllocateTableData())
 			return ERRORCODE_memory_allocation_failure ;
 		}
@@ -793,15 +863,28 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 	for (j = 0 ; j < elimVars.size() ; j++) 
 		ElimSize *= problem->K(elimVars[j]) ;
 
-	ARE_Function_TableType *data = OutputFN.TableData() ;
+	ARE_Function_TableType *data = OutputFN.TableData(), vTableEntry, value ;
 	double one_over_WMBEweight = WMBEweight < 1.0e+32 ? 1.0/WMBEweight : DBL_MAX ;
 	int64_t tablesize = 0 == nA ? 1 : OutputFN.TableSize(), adr ;
 	std::unique_ptr<int32_t[]> currentValueSet(new int32_t[_SortedSignature.size()]) ;
 	if (nullptr == currentValueSet) 
 		return 1 ;
 	for (i = 0 ; i < nA ; ++i) currentValueSet[i] = 0 ;
+
+	// sometimes the result should be written to file...
+	FILE *fp = nullptr ;
+	std::string sFN, sPrefix, sPostFix, sSample ;
+	if (ResultToFile) {
+		int64_t nSamples = tablesize ;
+		float samples_min_value = 1.0e+129, samples_max_value = 1.0e+129, samples_sum = 1.0e+129 ;
+		GenerateSamplesXmlFilename("-full", sFN, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+		fp = fopen(sFN.c_str(), "w") ;
+		if (nullptr != fp) 
+			fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;
+		}
+
 	for (int64_t KeepIDX = 0 ; KeepIDX < tablesize ; KeepIDX++) {
-		ARE_Function_TableType & v = NULL == data ? f_const_value : data[KeepIDX], value ;
+		ARE_Function_TableType & v = ResultToFile ? vTableEntry : (nullptr == data ? f_const_value : data[KeepIDX]) ;
 		v = bews->VarEliminationDefaultValue() ;
 		ElimIdx = -1 ;
 do_next_elim_config :
@@ -852,15 +935,30 @@ done_with_this_elim_config :
 			}
 		bews->ApplyFnCombinationOperator(v, const_factor) ;
 goto_next_keep_value_combination :
+		// if needed, add to file
+		if (ResultToFile && nullptr != fp) {
+			sSample = "\n   <sample signature=\"" ;
+			for (int32_t iSig = 0 ; iSig < nA ; ++iSig) {
+				if (iSig > 0) sSample += ';' ;
+				sprintf(buf, "%d", (int) currentValueSet[iSig]) ; sSample += buf ;
+				}
+			sprintf(buf, "\" value=\"%g\"/>", (double) v) ; sSample += buf ;
+			fwrite(sSample.c_str(), 1, sSample.length(), fp) ;
+			}
 		// go to next argument value combination
 		ARE::EnumerateNextArgumentsValueCombination(nA, vars, currentValueSet.get(), problem->K()) ;
+		}
+
+	if (nullptr != fp) {
+		fwrite(sPostFix.c_str(), 1, sPostFix.length(), fp) ;
+		fclose(fp) ;
 		}
 
 	return 0 ;
 }
 
 
-int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOperator, ARE::Function & OutputFN, const int32_t *ElimVars, int32_t nElimVars, int32_t *TempSpaceForVars, double WMBEweight)
+int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOperator, bool ResultToFile, ARE::Function & OutputFN, const int32_t *ElimVars, int32_t nElimVars, int32_t *TempSpaceForVars, double WMBEweight)
 {
 	int32_t i, j, k ;
 
@@ -893,6 +991,11 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 		return 0 ;
 		}
 
+	std::unique_ptr<char[]> sBUF(new char[1024]) ;
+	if (nullptr == sBUF) 
+		return 1 ;
+	char *buf = sBUF.get() ;
+
 	// compute output function signature
 	if (nElimVars < _SortedSignature.size()) {
 		for (i = 0 ; i < _SortedSignature.size() ; i++) TempSpaceForVars[i] = _SortedSignature[i] ; j = _SortedSignature.size() ;
@@ -904,7 +1007,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 	// set up output fn table
 	OutputFN.ComputeTableSize() ;
 	int32_t nA = OutputFN.N() ;
-	if (nA > 0) {
+	if (nA > 0 && ! ResultToFile) { // if result goes to file, don't need table...
 		if (0 != OutputFN.AllocateTableData()) 
 			return ERRORCODE_generic ;
 		}
@@ -940,15 +1043,28 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 	for (j = 0 ; j < nElimVars ; j++) 
 		ElimSize *= problem->K(ElimVars[j]) ;
 
-	ARE_Function_TableType *data = OutputFN.TableData() ;
+	ARE_Function_TableType *data = OutputFN.TableData(), vTableEntry, value ;
 	double one_over_WMBEweight = WMBEweight < 1.0e+32 ? 1.0 / WMBEweight : DBL_MAX ;
 	int64_t tablesize = 0 == nA ? 1 : OutputFN.TableSize(), adr ;
 	std::unique_ptr<int32_t[]> currentValueSet(new int32_t[_SortedSignature.size()]) ;
 	if (nullptr == currentValueSet) 
 		return 1 ;
 	for (i = 0 ; i < nA ; ++i) currentValueSet[i] = 0 ;
+
+	// sometimes the result should be written to file...
+	FILE *fp = nullptr ;
+	std::string sFN, sPrefix, sPostFix, sSample ;
+	if (ResultToFile) {
+		int64_t nSamples = tablesize ;
+		float samples_min_value = 1.0e+129, samples_max_value = 1.0e+129, samples_sum = 1.0e+129 ;
+		GenerateSamplesXmlFilename("-full", sFN, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+		fp = fopen(sFN.c_str(), "w") ;
+		if (nullptr != fp) 
+			fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;
+		}
+
 	for (int64_t KeepIDX = 0; KeepIDX < tablesize; KeepIDX++) {
-		ARE_Function_TableType & v = NULL == data ? f_const_value : data[KeepIDX], value ;
+		ARE_Function_TableType & v = ResultToFile ? vTableEntry : (nullptr == data ? f_const_value : data[KeepIDX]) ;
 		v = bews->VarEliminationDefaultValue() ;
 		ElimIdx = -1 ;
 do_next_elim_config:
@@ -986,6 +1102,16 @@ done_with_this_elim_config :
 			}
 		bews->ApplyFnCombinationOperator(v, const_factor) ;
 goto_next_keep_value_combination :
+		// if needed, add to file
+		if (ResultToFile && nullptr != fp) {
+			sSample = "\n   <sample signature=\"" ;
+			for (int32_t iSig = 0 ; iSig < nA ; ++iSig) {
+				if (iSig > 0) sSample += ';' ;
+				sprintf(buf, "%d", (int) currentValueSet[iSig]) ; sSample += buf ;
+				}
+			sprintf(buf, "\" value=\"%g\"/>", (double) v) ; sSample += buf ;
+			fwrite(sSample.c_str(), 1, sSample.length(), fp) ;
+			}
 		// go to next argument value combination
 		ARE::EnumerateNextArgumentsValueCombination(nA, vars, currentValueSet.get(), problem->K()) ;
 		}
@@ -1017,6 +1143,11 @@ goto_next_keep_value_combination :
 		bews->ApplyFnCombinationOperator(data[KeepIDX], const_factor) ;
 		}
 */
+
+	if (nullptr != fp) {
+		fwrite(sPostFix.c_str(), 1, sPostFix.length(), fp) ;
+		fclose(fp) ;
+		}
 
 	return 0 ;
 }

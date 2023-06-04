@@ -201,6 +201,19 @@ public :
 
 public :
 
+	// when sampling from the output fn table, samples xml file name...
+	// Prefix/Postfix are before/after the actual samples...
+	int32_t GenerateSamplesXmlFilename(
+		// IN : filename extra suffix...
+		const char *sSuffix, 
+		// OUT
+		std::string & fn, 
+		// OUT
+		std::string & sPrefix, std::string & sPostFix,
+		// IN : samples info/data...
+		int32_t nSamples, double samples_min_value, double samples_max_value, double samples_sum
+		) ;
+
 	// output function has been computed.
 	// to stuff, e.g. cleanup (release FTBs of all child buckets).
 	int32_t NoteOutputFunctionComputationCompletion(void) ;
@@ -212,9 +225,15 @@ public :
 	//		-) adding avgMaxMarginal and subtract MaxMarginal.
 	//		-) do power-sum with WMBEweight
 	// the var(s) being eliminated are in the scope of avgMaxMarginal/MaxMarginal.
-	virtual int32_t ComputeOutputFunction(int32_t varElimOperator, 
-		ARE::Function *FU, ARE::Function *fU, // used when doing MomentMatching (product/max) (FU=fMaxMarginal fU=fAvgMaxMarginal) or CostShifting (product/sum)
-		double WMBEweight // used when running WMBE
+	virtual int32_t ComputeOutputFunction(
+		// IN
+		int32_t varElimOperator, 
+		// IN : if result goes to file...
+		bool ResultToFile, 
+		// IN : temp, used when doing MomentMatching (product/max) (FU=fMaxMarginal fU=fAvgMaxMarginal) or CostShifting (product/sum)
+		ARE::Function *FU, ARE::Function *fU, 
+		// IN : used when running WMBE
+		double WMBEweight
 		) ;
 	// Neural Network based version of ComputeOutputFunction()...
 	// i.e. the output function is of type FunctionNN..
@@ -223,8 +242,14 @@ public :
 		double WMBEweight // used when running WMBE
 		) ;
 	// basic/general worker fn for eliminating a set of vars; we assume all ElimVars are in the minibucket signature. OutputFN.scope = MB.variables - ElimVars 
-	virtual int32_t ComputeOutputFunction(int32_t varElimOperator, 
+	virtual int32_t ComputeOutputFunction(
+		// IN
+		int32_t varElimOperator, 
+		// IN : if result goes to file...
+		bool ResultToFile, 
+		// OUT
 		ARE::Function & OutputFN, 
+		// MISC
 		const int32_t *ElimVars, int32_t nElimVars, int32_t *TempSpaceForVars, 
 		double WMBEweight // used when running WMBE
 		) ;

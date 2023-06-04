@@ -1820,7 +1820,7 @@ int32_t BucketElimination::MBEworkspace::RunSimple(void)
 		int32_t varElimOperator = VarEliminationType() ;
 		for (MiniBucket *mb : mbs) {
 			ARE::Function & f = mb->OutputFunction() ;
-			mb->ComputeOutputFunction(varElimOperator, NULL, NULL, DBL_MAX) ;
+			mb->ComputeOutputFunction(varElimOperator, false, NULL, NULL, DBL_MAX) ;
 			// if problem is summation, sum over first mini-bucket, max (or min) over other minibuckets.
 			if (VAR_ELIMINATION_TYPE_SUM == varElimOperator) 
 				varElimOperator = VAR_ELIMINATION_TYPE_MAX ;

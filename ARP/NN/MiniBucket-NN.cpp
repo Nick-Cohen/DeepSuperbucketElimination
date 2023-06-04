@@ -46,7 +46,13 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
         return ERRORCODE_generic ;
 	int32_t varElimOp = bews->VarEliminationType() ;
 
-	bool data_is_log_space = Problem()->FunctionsAreConvertedToLogScale() ;
+	bool data_is_log_space = problem->FunctionsAreConvertedToLogScale() ;
+
+	// for testing, saving superbuckets output for xml file...
+	if (false) {
+		int32_t res = ComputeOutputFunction(varElimOperator, true, nullptr, nullptr, DBL_MAX) ;
+		int32_t done = 1 ;
+		}
 
 	// generate samples...
 	int64_t nSamples = 1000 ;
@@ -61,32 +67,15 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	}
 
 	// write samples into xml file...
-	const char *fn = "samples.xml" ;
 	{
-		std::unique_ptr<char[]> sBUF(new char[4096]) ;
+		std::unique_ptr<char[]> sBUF(new char[1024]) ;
 		if (nullptr == sBUF) 
 			return 1 ;
 		char *buf = sBUF.get() ;
-		std::string s ;
-		// generate scope and domain size lists
-		if (nullptr != _OutputFunction) {
-			s += " outputfnscope=\"" ;
-			for (int32_t i = 0 ; i < _OutputFunction->N() ; ++i) {
-				if (i > 0) s += ';' ;
-				sprintf(buf, "%d", (int) _OutputFunction->Argument(i)) ;
-				s += buf ;
-				}
-			s += "\" variabledomainsizes=\"" ;
-			for (int32_t i = 0 ; i < _OutputFunction->N() ; ++i) {
-				if (i > 0) s += ';' ;
-				sprintf(buf, "%d", (int) problem->K(_OutputFunction->Argument(i))) ;
-				s += buf ;
-				}
-			s += '\"' ;
-			}
-		FILE *fp = fopen(fn, "w") ;
-		fwrite("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", 1, 38, fp) ;
-		sprintf(buf, "\n<samples n=\"%d\" nFeaturesPerSample=\"%d\"%s datainlogspace=\"%c\" min=\"%g\" max=\"%g\" sum=\"%g\">", (int) nSamples, (int) nFeaturesPerSample, s.c_str(), (char) data_is_log_space ? 'Y' : 'N', (double) samples_min_value, (double) samples_max_value, (double) samples_sum) ; fwrite(buf, 1, strlen(buf), fp) ;
+		std::string s, sPrefix, sPostFix ;
+		GenerateSamplesXmlFilename(nullptr, s, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+		FILE *fp = fopen(s.c_str(), "w") ;
+		fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;
 		for (int32_t iS = 0 ; iS < nSamples ; ++iS) {
 			int16_t *sample_signature = samples_signature.get() + iS * nFeaturesPerSample ;
 			s = "\n   <sample signature=\"" ;
@@ -97,7 +86,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 			sprintf(buf, "\" value=\"%g\"/>", (double) samples_values[iS]) ; s += buf ;
 			fwrite(s.c_str(), 1, s.length(), fp) ;
 			}
-		fwrite("\n</samples>", 1, 11, fp) ;
+		fwrite(sPostFix.c_str(), 1, sPostFix.length(), fp) ;
 		fclose(fp) ;
 	}
 
