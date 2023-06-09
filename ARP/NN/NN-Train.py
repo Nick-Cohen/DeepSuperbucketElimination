@@ -149,7 +149,7 @@ class Net(nn.Module):
                 
     def save_model(self, file_path=None):
         if file_path is None:
-            file_path = "nn-" + self.nn_data.file_name[:-3] + "pt"
+            file_path = "nn-weights" + self.nn_data.file_name[7:-3] + "pt"
         scripted_model = t.jit.script(self)
         scripted_model.save(file_path)
 
@@ -166,7 +166,6 @@ def main(file_name, nn_save_path):
     nn.train_model()
     if nn_save_path is not None:
         nn.save_model(nn_save_path)
-        print('got here')
     else:
         nn.save_model()
 
