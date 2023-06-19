@@ -6,6 +6,10 @@
 #include <chrono>
 #include <random>
 
+#if defined WINDOWS || _WINDOWS
+#include <windows.h>
+#endif // WINDOWS
+
 #include <Sort.hxx>
 #include <Function.hxx>
 #include <Bucket.hxx>
@@ -16,6 +20,55 @@
 #include <Function-NN.hxx>
 #include "NNConfig.h"
 #include "DATA_SAMPLES.h"
+
+int32_t DeleteFile(const char *filename)
+{
+#if defined WINDOWS || _WINDOWS
+	BOOL res = DeleteFileA(filename) ;
+	return res ? 0 : 1 ;
+#else
+	int32_t res = stsd::remove(filename) ;
+	return res ;
+#endif
+	return 1 ;
+}
+
+
+int32_t CheckFileExists(const char *filename)
+{
+#if defined WINDOWS || _WINDOWS
+	bool file_exists = INVALID_FILE_ATTRIBUTES != GetFileAttributesA(filename) ;
+	return file_exists ? 0 : 1 ;
+#else
+	struct stat buffer ;
+	int res = stat(filename, &buffer) ;
+	return res ;
+#endif
+	return 1 ;
+}
+
+int32_t WaitForFile(const char *filename, int64_t TimeoutInMSec, int64_t SleepTimeInMSec /* 100 */, int64_t & dtWaitPeriod)
+{
+	dtWaitPeriod = 0 ;
+	int32_t resFileExists = CheckFileExists(filename) ;
+	if (0 == resFileExists)
+		return 0 ;
+	int64_t tStart = ARE::GetTimeInMilliseconds() ;
+	while (true) {
+		SLEEP(SleepTimeInMSec) ;
+		int64_t tNow = ARE::GetTimeInMilliseconds() ;
+		dtWaitPeriod = tNow - tStart ;
+		resFileExists = CheckFileExists(filename) ;
+		if (0 == resFileExists)
+			return 0 ;
+		if (dtWaitPeriod > TimeoutInMSec) {
+			return 1 ;
+			}
+		}
+
+	return 1 ;
+}
+
 
 //#include <iostream> //delete
 //#include <fstream> //delete
