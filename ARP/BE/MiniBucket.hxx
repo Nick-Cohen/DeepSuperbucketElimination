@@ -207,9 +207,10 @@ public :
 		// IN : filename extra suffix...
 		const char *sSuffix, 
 		// OUT
-		std::string & fn, 
+		std::string & fnSamples, 
+		std::string & fnNetwork, 
 		// OUT
-		std::string & sPrefix, std::string & sPostFix,
+		std::string & sFilePrefix, std::string & sFilePostFix,
 		// IN : samples info/data...
 		int32_t nSamples, double samples_min_value, double samples_max_value, double samples_sum
 		) ;

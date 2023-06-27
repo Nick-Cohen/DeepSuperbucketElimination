@@ -698,7 +698,7 @@ done_with_this_elim_config :
 
 
 int32_t BucketElimination::MiniBucket::GenerateSamplesXmlFilename(
-	const char *sSuffix, std::string & fn, std::string & sPrefix, std::string & sPostFix, 
+	const char *sSuffix, std::string & fnSamples, std::string & fnNetwork, std::string & sPrefix, std::string & sPostFix, 
 	int32_t nSamples, double samples_min_value, double samples_max_value, double samples_sum)
 {
 	MBEworkspace *bews = dynamic_cast<MBEworkspace*>(_Workspace) ;
@@ -716,16 +716,17 @@ int32_t BucketElimination::MiniBucket::GenerateSamplesXmlFilename(
 
 	bool data_is_log_space = problem->FunctionsAreConvertedToLogScale() ;
 
-	fn = "samples-" ;
+	fnSamples = "samples-" ; fnNetwork = "nn-" ;
 	// file name = list of vars being eliminated...
 	for (int32_t i = 0 ; i < _Vars.size() ; ++i) {
-		if (i > 0) fn += ';' ;
+		if (i > 0) { fnSamples += ';' ; fnNetwork += ';' ; }
 		sprintf(buf, "%d", (int) _Vars[i]) ;
-		fn += buf ;
+		fnSamples += buf ; fnNetwork += buf ;
 		}
 	if (nullptr != sSuffix) 
-		fn += sSuffix ;
-	fn += ".xml" ;
+		{ fnSamples += sSuffix ; fnNetwork += sSuffix ; }
+	fnSamples += ".xml" ;
+	fnNetwork += ".jit" ;
 
 	// generate scope and domain size lists
 	if (nullptr != _OutputFunction) {
@@ -753,6 +754,11 @@ int32_t BucketElimination::MiniBucket::GenerateSamplesXmlFilename(
 		sprintf(buf, " max=\"%g\"", (double) samples_max_value) ; sPrefix += buf ; }
 	if (samples_sum < 1.0e+128) {
 		sprintf(buf, " sum=\"%g\"", (double) samples_sum) ; sPrefix += buf ; }
+	if (fnNetwork.length() > 0) {
+		sPrefix += " fnNetwork=\"" ;
+		sPrefix += fnNetwork ;
+		sPrefix += '\"' ;
+		}
 	sPrefix += '>' ;
 
 	// sPostFix
@@ -873,11 +879,11 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 
 	// sometimes the result should be written to file...
 	FILE *fp = nullptr ;
-	std::string sFN, sPrefix, sPostFix, sSample ;
+	std::string sFN, sFNnn, sPrefix, sPostFix, sSample ;
 	if (ResultToFile) {
 		int64_t nSamples = tablesize ;
 		float samples_min_value = 1.0e+129, samples_max_value = 1.0e+129, samples_sum = 1.0e+129 ;
-		GenerateSamplesXmlFilename("-full", sFN, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+		GenerateSamplesXmlFilename("-full", sFN, sFNnn, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
 		fp = fopen(sFN.c_str(), "w") ;
 		if (nullptr != fp) 
 			fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;
@@ -1053,11 +1059,11 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 
 	// sometimes the result should be written to file...
 	FILE *fp = nullptr ;
-	std::string sFN, sPrefix, sPostFix, sSample ;
+	std::string sFN, sFNnn, sPrefix, sPostFix, sSample ;
 	if (ResultToFile) {
 		int64_t nSamples = tablesize ;
 		float samples_min_value = 1.0e+129, samples_max_value = 1.0e+129, samples_sum = 1.0e+129 ;
-		GenerateSamplesXmlFilename("-full", sFN, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+		GenerateSamplesXmlFilename("-full", sFN, sFNnn, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
 		fp = fopen(sFN.c_str(), "w") ;
 		if (nullptr != fp) 
 			fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;

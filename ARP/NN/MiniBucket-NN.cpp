@@ -10,6 +10,14 @@
 #include <windows.h>
 #endif // WINDOWS
 
+#ifdef INCLUDE_TORCH
+
+#include <torch/torch.h>
+#include <torch/nn/module.h>
+#include <torch/script.h>
+
+#endif // INCLUDE_TORCH
+
 #include <Sort.hxx>
 #include <Function.hxx>
 #include <Bucket.hxx>
@@ -99,6 +107,13 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
         return ERRORCODE_generic ;
 	int32_t varElimOp = bews->VarEliminationType() ;
 
+    ARE::FunctionNN *fNN = dynamic_cast<ARE::FunctionNN *>(_OutputFunction) ;
+    if (NULL == fNN)
+        return 1 ;
+	if (nullptr == fNN->model) {
+		// TODO ? need to create model ?
+		}
+
 	bool data_is_log_space = problem->FunctionsAreConvertedToLogScale() ;
 
 	// for testing, saving superbuckets output for xml file...
@@ -120,14 +135,15 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	}
 
 	// write samples into xml file...
+	std::string sFNsamples, sFNnn ;
 	{
 		std::unique_ptr<char[]> sBUF(new char[1024]) ;
 		if (nullptr == sBUF) 
 			return 1 ;
 		char *buf = sBUF.get() ;
 		std::string s, sPrefix, sPostFix ;
-		GenerateSamplesXmlFilename(nullptr, s, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
-		FILE *fp = fopen(s.c_str(), "w") ;
+		GenerateSamplesXmlFilename(nullptr, sFNsamples, sFNnn, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+		FILE *fp = fopen(sFNsamples.c_str(), "w") ;
 		fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;
 		for (int32_t iS = 0 ; iS < nSamples ; ++iS) {
 			int16_t *sample_signature = samples_signature.get() + iS * nFeaturesPerSample ;
@@ -142,6 +158,24 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		fwrite(sPostFix.c_str(), 1, sPostFix.length(), fp) ;
 		fclose(fp) ;
 	}
+
+	int64_t nnWaitTimeoutInMsec = 86400000 ; // 86400000 = 24hours
+	int64_t SleepTimeInMSec = 100, dtWaitPeriod = -1 ;
+	int32_t resFileWait = WaitForFile(sFNnn.c_str(), nnWaitTimeoutInMsec, SleepTimeInMSec, dtWaitPeriod) ;
+	if (0 == resFileWait) {
+		// can load file now...
+		if (nullptr == fNN->model) {
+			// must create...
+			if (nullptr == fNN->model) 
+				return 1 ;
+			}
+		try {
+			Masked_Net model = torch::jit::load(sFNnn.c_str()) ;
+			}
+		catch (...) {
+			return 999 ;
+			}
+		}
 
 	// 2023-06-01 temp : quit after saving samples...
 	exit(102) ;
