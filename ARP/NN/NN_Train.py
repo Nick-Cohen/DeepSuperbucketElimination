@@ -19,7 +19,7 @@ import argparse
 
 class NN_Data:
 
-    def __init__(self, file_name = None, processed_samples = None, values = None, device = 'CUDA'):
+    def __init__(self, file_name = None, processed_samples = None, values = None, device = 'cuda'):
         self.file_name = file_name
         self.num_samples: int
         self.features_per_sample: int
@@ -59,8 +59,8 @@ class NN_Data:
         self.num_samples = num_samples
 
         # Convert lists to PyTorch tensors
-        signatures_tensor = t.tensor(signatures_list)
-        values_tensor = t.tensor(values_list)
+        signatures_tensor = t.tensor(signatures_list).to(self.device)
+        values_tensor = t.tensor(values_list).to(self.device)
 
         self.signatures, self.values = signatures_tensor, values_tensor
         self.values[self.values == float('-inf')] = -1e10
@@ -69,8 +69,8 @@ class NN_Data:
 
         # Get 'outputfnvariabledomainsizes' attribute and convert it to a list of integers
         domain_sizes = [int(x) for x in root.get('outputfnvariabledomainsizes').split(';')]
-        self.domain_sizes = t.IntTensor(domain_sizes)
-        self.input_vectors = self.one_hot_encode(self.signatures).float()
+        self.domain_sizes = t.IntTensor(domain_sizes).to(self.device)
+        self.input_vectors = (self.one_hot_encode(self.signatures).float()).to(self.device)
 
 
 
@@ -93,18 +93,20 @@ class NN_Data:
 # %%
 class Net(nn.Module):
     # def __init__(self, input_size, hidden_size, output_size):
-    def __init__(self, nn_data: NN_Data):
+    def __init__(self, nn_data: NN_Data, linear=False):
         super(Net, self).__init__()
-        
+        self.linear = linear
         self.nn_data = nn_data
         self.num_samples = self.nn_data.num_samples
-        self.values = nn_data.values.float()
+        self.device = nn_data.device
+        self.values = nn_data.values.float().to(self.device)
         input_size, hidden_size = len(nn_data.input_vectors[0]), len(nn_data.input_vectors[0])//2
         output_size = 1
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, output_size)
+        self.fc1 = nn.Linear(input_size, hidden_size).to(self.device)
+        self.relu = nn.ReLU().to(self.device)
+        if not linear:
+            self.fc2 = nn.Linear(hidden_size, hidden_size).to(self.device)
+            self.fc3 = nn.Linear(hidden_size, output_size).to(self.device)
 
         # self.loss_fn = nn.MSELoss()
         self.loss_fn = nn.L1Loss()
@@ -113,13 +115,15 @@ class Net(nn.Module):
     def forward(self, x):
         out = self.fc1(x)
         out = self.relu(out)
-        out = self.fc2(out)
-        out = self.relu(out)
-        out = self.fc3(out)
+        if not self.linear:
+            out = self.fc2(out)
+            out = self.relu(out)
+            out = self.fc3(out)
         return out
     
     def train_model(self, epochs=1000, batch_size=100):
         X=self.nn_data.input_vectors#.float()
+        assert(X.device.type==self.device) ############################################################
         num_batches = int(self.num_samples / batch_size)
 
         for epoch in range(epochs):
@@ -127,9 +131,11 @@ class Net(nn.Module):
                 # Get mini-batch
                 X_batch = X[i*batch_size : (i+1)*batch_size]
                 values_batch = self.values[i*batch_size : (i+1)*batch_size]
+                assert(values_batch.device.type==self.device) #################################
 
                 # Predict
                 pred_values = self(X_batch)
+                assert(pred_values.device.type==self.device) #################################
 
                 # Replace -inf with a large negative number
                 # pred_values[pred_values == float('-inf')] = -1e10
@@ -138,9 +144,13 @@ class Net(nn.Module):
                 # Convert predictions and values from log space to original scale
                 pred_values_exp = t.exp(pred_values)
                 values_exp = t.exp(values_batch.view(-1, 1))
+                assert(pred_values_exp.device.type==self.device) #################################
+                assert(values_exp.device.type==self.device) #################################
 
                 # Compute loss
                 loss = self.loss_fn(pred_values_exp, values_exp)
+                assert(loss.device.type==self.device) #################################
+                
 
                 # Backpropagation
                 self.optimizer.zero_grad()
@@ -158,6 +168,7 @@ class Net(nn.Module):
             pred_value = self(input_vector)
             exp_pred, exp_value = t.exp(pred_value), t.exp(value)
             # print(exp_pred,exp_value, self.loss_fn(exp_pred,exp_value))
+            assert(self.loss_fn(exp_pred, exp_value).device.type==self.device) #################################
             return self.loss_fn(exp_pred, exp_value)
 
     def save_model(self, file_path=None):
