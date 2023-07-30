@@ -11,6 +11,10 @@
 #include "Problem/Globals.hxx"
 //#include "Problem/Workspace.hxx"
 
+#include <torch/torch.h>
+#include <torch/nn/module.h>
+#include <torch/script.h>
+
 #ifdef INCLUDE_TORCH
 #include "Net.h"
 #endif // INCLUDE_TORCH
@@ -366,6 +370,30 @@ public :
 			adr += j*SignatureAssignment[i] ; // value of variable i
 			}
 		return adr ;
+	}
+
+	inline int32_t FillInOneHotNNinput(at::Tensor & input, const int32_t *NativeAssignment, const int32_t *DomainSizes)
+	{
+		if (_nArgs <= 0)
+			return 0;
+		int l = input.numel() ;
+		if (l != _nArgs) {
+			input = torch::zeros({ 1, _nArgs }) ;
+			l = input.numel();
+			if (l != _nArgs)
+				return 1 ;
+			}
+		int32_t j = 0 ; // j points to the beginning on the variable's one-hot encoding bits...
+		void *ptr = input.data_ptr() ;
+		float *e = (float *) ptr ;
+		for (int32_t i = 0 ; i < _nArgs ; ++i) {
+			int32_t var = _Arguments[i] ;
+			int32_t k = DomainSizes[var] ;
+			int32_t val = NativeAssignment[var] ;
+			if (val > 0) 
+				e[j + (val-1)] = (float) 1.0;
+			j += k-1 ;
+			}
 	}
 
 	// assume the value of variable i is at NativeAssignment[i]

@@ -9,12 +9,22 @@
 #include <limits>
 
 #include <iostream>
+
 #if defined WINDOWS || _WINDOWS
 #include <process.h>    /* _beginthread, _endthread */
 #else
 #include <sys/time.h>
-
 #endif // WINDOWS
+
+#include <torch/torch.h>
+#include <torch/nn/module.h>
+#include <torch/script.h>
+template <typename T>
+void pretty_print(const std::string& info, T&& data)
+{
+	std::cout << info << std::endl;
+	std::cout << data << std::endl << std::endl;
+}
 
 #include "CVO/VariableOrderComputation.hxx"
 #include "BE/Bucket.hxx"
@@ -75,10 +85,55 @@ double logabsdiffexp10(double num1, double num2) {
 
 int32_t main(int32_t argc, char* argv[])
 {
+/*
 #ifdef INCLUDE_TORCH
 	torch::Tensor tensor2 = torch::eye(3);
     std::cout << tensor2 << std::endl;
 #endif // INCLUDE_TORCH
+*/
+
+	{
+//		torch::Tensor tensor = torch::eye(3);
+//		pretty_print("Eye tensor: ", tensor);
+
+		std::string fn_samples("C:\\UCI\\DeepSuperbucketElimination-Nick-github\\BESampling\\samples-39;104;141.xml") ;
+		std::string fn_weights("C:\\UCI\\DeepSuperbucketElimination-Nick-github\\ARP\\NN\\nn-39;104;141.jit") ;
+// signature="0;0;0;0;0;0;0;0;1;0;0;0;0" value="-6.71354" predicted value = -6.764173984527588
+// <samples n="18432" nFeaturesPerSample="13" outputfnscope="85;89;93;97;98;101;134;177;179;181;183;185;187" outputfnvariabledomainsizes="2;2;2;2;2;2;2;3;3;2;2;2;2" datainlogspace="Y">
+		torch::jit::Module model = torch::jit::load(fn_weights.c_str()) ;
+
+		std::vector<torch::jit::IValue> inputs ;
+		at::Tensor input = torch::zeros({ 1, 15 }) ;
+		int l = input.numel() ;
+		inputs.push_back(input);
+		void *ptr = input.data_ptr() ;
+		((float*)ptr)[9] = 1 ;
+		torch::jit::IValue & ip = inputs[0] ;
+//		torch::zeros({ 1, 15 }));
+//		inputs.push_back(torch::ones({ 1, 15 })) ;
+
+//at::Tensor t1 = torch::zeros({1, 1}) ;
+//std::cout << "one = " << t1 << "\n";
+
+
+//		i.index_put_({ torch::tensor({ 1,9 }) }, t1);
+
+//		at::Tensor & i9 = i.slice(1, 9, 9, 1) ;
+//		i9.set_data(t1);
+//		i.slice(0, 9, 9, 1).set_data(t1);
+//		auto Ti = i.flatten();
+//		int len = Ti.size(0);
+
+std::cout << "input = " << ip << "\n" ;
+bool isT = ip.isTensor() ;
+		// set [9] to '1'
+		// ...
+
+		at::Tensor output = model.forward(inputs).toTensor();
+		std::cout << "value is : " << output.slice(/*dim=*/1, /*start=*/0, /*end=*/5) << '\n';
+
+		return 0;
+	}
 
 #if defined WINDOWS || _WINDOWS
 	time_t wall0 ;
