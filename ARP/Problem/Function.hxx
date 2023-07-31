@@ -383,6 +383,12 @@ public :
 			if (l != _nArgs)
 				return 1 ;
 			}
+		else {
+			void* ptr = input.data_ptr();
+			float* e = (float*)ptr;
+			for (int32_t i = 0 ; i < l ; ++i)
+				e[i] = (float)0.0;
+			}
 		int32_t j = 0 ; // j points to the beginning on the variable's one-hot encoding bits...
 		void *ptr = input.data_ptr() ;
 		float *e = (float *) ptr ;
@@ -473,7 +479,7 @@ public :
 			return _ConstValue ;
 		return _TableData[ComputeFnTableAdr_Native(NativeAssignment, K)] ;
 	}
-	virtual ARE_Function_TableType TableEntryEx(int32_t *BEPathAssignment, const int32_t *K) const 
+	virtual ARE_Function_TableType TableEntryEx(int32_t *BEPathAssignment, const int32_t *K)  
 	/*
 		desc = return fn value corresponding to given input configuration...
 		BEPathAssignment = assignment to all variables on the path from the bucket to the root of the bucket tree...
