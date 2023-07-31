@@ -27,6 +27,8 @@
 
 #ifdef INCLUDE_TORCH
 #include <torch/torch.h>
+#include <torch/nn/module.h>
+#include <torch/script.h>
 #endif // INCLUDE_TORCH
 
 namespace BucketElimination { class Bucket ; class MiniBucket ; }
