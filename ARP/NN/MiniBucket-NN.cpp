@@ -193,12 +193,14 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	}
 
 	// construct command line string
-	sprintf(buf, "python NN_Train.py --samples %s --nn_path %s --done_path %s", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
+	sprintf(buf, "python3 /home/cohenn1/SDBE/Super_Buckets/ARP/NN/NN_Train.py --samples \"%s\" --nn_path \"%s\" --done_path \"%s\"", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
 	// just in case delete signalling file...
 	DeleteFile(sFNsignalling.c_str());
 	// launch python training script
 	printf("\nWILL RUN COMMAND LINE : \n   ");
 	printf(buf);
+	printf("\nabc");
+	std::system("pwd");
 	std::system(buf);
 
 	int64_t nnWaitTimeoutInMsec = 86400000 ; // 86400000 = 24hours
