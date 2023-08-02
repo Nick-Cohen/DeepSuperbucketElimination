@@ -69,7 +69,7 @@ int32_t DeleteFile(const char *filename)
 	BOOL res = DeleteFileA(filename) ;
 	return res ? 0 : 1 ;
 #else
-	int32_t res = stsd::remove(filename) ;
+	int32_t res = std::remove(filename) ;
 	return res ;
 #endif
 	return 1 ;
@@ -192,6 +192,8 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 
 	// construct command line string
 	sprintf(buf, "python NN_Train.py --samples %s --nn_path %s --done_path %s", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
+	// just in case delete signalling file...
+	DeleteFile(sFNsignalling.c_str());
 	// launch python training script
 	std::system(buf);
 
