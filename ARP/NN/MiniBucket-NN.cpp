@@ -197,6 +197,8 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	// just in case delete signalling file...
 	DeleteFile(sFNsignalling.c_str());
 	// launch python training script
+	printf("\nWILL RUN COMMAND LINE : \n   ");
+	printf(buf);
 	std::system(buf);
 
 	int64_t nnWaitTimeoutInMsec = 86400000 ; // 86400000 = 24hours
