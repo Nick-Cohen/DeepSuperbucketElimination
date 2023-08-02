@@ -210,6 +210,11 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
         fNN->_model = torch::jit::load(sFNnn.c_str()) ;
         fNN->_modelIsGood = true ;
         fNN->CreateNNtensor() ;
+		printf("\nOK : found file %s", sFNnn.c_str());
+		}
+	else {
+		printf("\nERROR : failed to find file %s", sFNnn.c_str());
+		exit(99);
 		}
 
     return 0 ;
