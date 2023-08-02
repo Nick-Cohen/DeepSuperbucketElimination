@@ -92,7 +92,7 @@ int32_t main(int32_t argc, char* argv[])
 #endif // INCLUDE_TORCH
 */
 
-	{
+	if (false) {
 //		torch::Tensor tensor = torch::eye(3);
 //		pretty_print("Eye tensor: ", tensor);
 
