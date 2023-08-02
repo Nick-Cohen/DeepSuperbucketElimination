@@ -5,6 +5,7 @@
 #include <exception>
 #include <chrono>
 #include <random>
+#include <cstdlib>
 
 #if defined WINDOWS || _WINDOWS
 #include <windows.h>

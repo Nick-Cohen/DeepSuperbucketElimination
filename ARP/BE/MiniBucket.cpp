@@ -880,11 +880,11 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 
 	// sometimes the result should be written to file...
 	FILE *fp = nullptr ;
-	std::string sFN, sFNnn, sPrefix, sPostFix, sSample ;
+	std::string sFN, sFNnn, sFNsignalling, sPrefix, sPostFix, sSample ;
 	if (ResultToFile) {
 		int64_t nSamples = tablesize ;
 		float samples_min_value = 1.0e+129, samples_max_value = 1.0e+129, samples_sum = 1.0e+129 ;
-		GenerateSamplesXmlFilename("-full", sFN, sFNnn, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+		GenerateSamplesXmlFilename("-full", sFN, sFNnn, sFNsignalling, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
 		fp = fopen(sFN.c_str(), "w") ;
 		if (nullptr != fp) 
 			fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;
