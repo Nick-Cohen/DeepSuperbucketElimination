@@ -207,10 +207,13 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	int64_t SleepTimeInMSec = 100, dtWaitPeriod = -1 ;
 	int32_t resFileWait = WaitForFile(sFNsignalling.c_str(), nnWaitTimeoutInMsec, SleepTimeInMSec, dtWaitPeriod) ;
 	if (0 == resFileWait) {
-        fNN->_model = torch::jit::load(sFNnn.c_str()) ;
-        fNN->_modelIsGood = true ;
-        fNN->CreateNNtensor() ;
 		printf("\nOK : found file %s", sFNnn.c_str());
+		fNN->_model = torch::jit::load(sFNnn.c_str()) ;
+		printf("\nOK : loaded file %s", sFNnn.c_str());
+		fNN->_modelIsGood = true ;
+        fNN->CreateNNtensor() ;
+		printf("\nOK : created tensor %s", sFNnn.c_str());
+		printf("\nOK : all done %s", sFNnn.c_str());
 		}
 	else {
 		printf("\nERROR : failed to find file %s", sFNnn.c_str());
