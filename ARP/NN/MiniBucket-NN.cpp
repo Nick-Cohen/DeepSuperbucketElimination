@@ -9,6 +9,8 @@
 
 #if defined WINDOWS || _WINDOWS
 #include <windows.h>
+#else
+#include <sys/stat.h>
 #endif // WINDOWS
 
 #ifdef INCLUDE_TORCH
