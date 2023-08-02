@@ -698,7 +698,7 @@ done_with_this_elim_config :
 
 
 int32_t BucketElimination::MiniBucket::GenerateSamplesXmlFilename(
-	const char *sSuffix, std::string & fnSamples, std::string & fnNetwork, std::string & sPrefix, std::string & sPostFix, 
+	const char *sSuffix, std::string & fnSamples, std::string & fnNetwork, std::string& fnFNsignalling, std::string & sPrefix, std::string & sPostFix,
 	int32_t nSamples, double samples_min_value, double samples_max_value, double samples_sum)
 {
 	MBEworkspace *bews = dynamic_cast<MBEworkspace*>(_Workspace) ;
@@ -716,17 +716,18 @@ int32_t BucketElimination::MiniBucket::GenerateSamplesXmlFilename(
 
 	bool data_is_log_space = problem->FunctionsAreConvertedToLogScale() ;
 
-	fnSamples = "samples-" ; fnNetwork = "nn-" ;
+	fnSamples = "samples-"; fnNetwork = "nn-"; fnFNsignalling = "nnready-";
 	// file name = list of vars being eliminated...
 	for (int32_t i = 0 ; i < _Vars.size() ; ++i) {
-		if (i > 0) { fnSamples += ';' ; fnNetwork += ';' ; }
+		if (i > 0) { fnSamples += ';'; fnNetwork += ';'; fnFNsignalling += ';'; }
 		sprintf(buf, "%d", (int) _Vars[i]) ;
-		fnSamples += buf ; fnNetwork += buf ;
+		fnSamples += buf; fnNetwork += buf; fnFNsignalling += buf;
 		}
-	if (nullptr != sSuffix) 
-		{ fnSamples += sSuffix ; fnNetwork += sSuffix ; }
+	if (nullptr != sSuffix) {
+		fnSamples += sSuffix; fnNetwork += sSuffix; fnFNsignalling += sSuffix; }
 	fnSamples += ".xml" ;
 	fnNetwork += ".jit" ;
+	fnFNsignalling += ".txt";
 
 	// generate scope and domain size lists
 	if (nullptr != _OutputFunction) {

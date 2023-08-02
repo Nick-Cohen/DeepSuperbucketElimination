@@ -209,6 +209,7 @@ public :
 		// OUT
 		std::string & fnSamples, 
 		std::string & fnNetwork, 
+		std::string & sFNsignalling, 
 		// OUT
 		std::string & sFilePrefix, std::string & sFilePostFix,
 		// IN : samples info/data...

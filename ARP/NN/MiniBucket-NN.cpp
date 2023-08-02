@@ -31,27 +31,26 @@
 
 int32_t ARE::FunctionNN::CreateNNtensor(void)
 {
-	const int32_t* DomainSizes = _Problem->K();
-	int nBits = -_nArgs;
-	for (int32_t i = 0; i < _nArgs; ++i) {
-		int32_t var = _Arguments[i];
-		int32_t k = DomainSizes[var];
-		nBits += k;
-	}
-	_input = torch::zeros({ 1, nBits });
-	_inputs.push_back(_input);
-	return 0;
+	const int32_t* DomainSizes = _Problem->K() ;
+	int nBits = -_nArgs ;
+	for (int32_t i = 0 ; i < _nArgs ; ++i) {
+		int32_t var = _Arguments[i] ;
+		int32_t k = DomainSizes[var] ;
+		nBits += k ;
+		}
+	_input = torch::zeros({ 1, nBits }) ;
+	_inputs.push_back(_input) ;
+	return 0 ;
 }
 
-ARE_Function_TableType ARE::FunctionNN::TableEntryEx(int32_t* BEPathAssignment, const int32_t* K)
+ARE_Function_TableType ARE::FunctionNN::TableEntryEx(int32_t* BEPathAssignment, const int32_t* DomainSizes)
 {
-	ARE_Function_TableType out_value = 0.0;
+	ARE_Function_TableType out_value = 0.0 ;
 
 	if (!_modelIsGood)
-		return out_value;
+		return out_value ;
 
-	const int32_t* DomainSizes = _Problem->K();
-	int32_t res = FillInOneHotNNinput(_input, BEPathAssignment, DomainSizes);
+	int32_t res = FillInOneHotNNinput(_input, BEPathAssignment, DomainSizes) ;
 	if (0 != res)
 		return out_value;
 	at::Tensor output = _model.forward(_inputs).toTensor();
@@ -166,14 +165,14 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	}
 
 	// write samples into xml file...
-	std::string sFNsamples, sFNnn ;
+	std::string sFNsamples, sFNnn /* nn.jit file we expect to get back */, sFNsignalling ;
+	std::unique_ptr<char[]> sBUF(new char[1024]);
+	if (nullptr == sBUF)
+		return 1;
+	char* buf = sBUF.get();
 	{
-		std::unique_ptr<char[]> sBUF(new char[1024]) ;
-		if (nullptr == sBUF) 
-			return 1 ;
-		char *buf = sBUF.get() ;
 		std::string s, sPrefix, sPostFix ;
-		GenerateSamplesXmlFilename(nullptr, sFNsamples, sFNnn, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+		GenerateSamplesXmlFilename(nullptr, sFNsamples, sFNnn, sFNsignalling, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
 		FILE *fp = fopen(sFNsamples.c_str(), "w") ;
 		fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;
 		for (int32_t iS = 0 ; iS < nSamples ; ++iS) {
@@ -190,9 +189,14 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		fclose(fp) ;
 	}
 
+	// construct command line string
+	sprintf(buf, "python NN_Train.py --samples %s --nn_path %s --done_path %s", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
+	// launch python training script
+	std::system(buf);
+
 	int64_t nnWaitTimeoutInMsec = 86400000 ; // 86400000 = 24hours
 	int64_t SleepTimeInMSec = 100, dtWaitPeriod = -1 ;
-	int32_t resFileWait = WaitForFile(sFNnn.c_str(), nnWaitTimeoutInMsec, SleepTimeInMSec, dtWaitPeriod) ;
+	int32_t resFileWait = WaitForFile(sFNsignalling.c_str(), nnWaitTimeoutInMsec, SleepTimeInMSec, dtWaitPeriod) ;
 	if (0 == resFileWait) {
         fNN->_model = torch::jit::load(sFNnn.c_str()) ;
         fNN->_modelIsGood = true ;
