@@ -192,6 +192,9 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		fclose(fp) ;
 	}
 
+//sFNnn = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\nn-202.jit";
+//sFNsignalling = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\ready-202.jit";
+
 	// construct command line string
 	sprintf(buf, "python3 /home/cohenn1/SDBE/Super_Buckets/ARP/NN/NN_Train.py --samples \"%s\" --nn_path \"%s\" --done_path \"%s\"", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
 	// just in case delete signalling file...
@@ -208,7 +211,14 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	int32_t resFileWait = WaitForFile(sFNsignalling.c_str(), nnWaitTimeoutInMsec, SleepTimeInMSec, dtWaitPeriod) ;
 	if (0 == resFileWait) {
 		printf("\nOK : found file %s", sFNnn.c_str());
-		fNN->_model = torch::jit::load(sFNnn.c_str()) ;
+		try {
+			fNN->_model = torch::jit::load(sFNnn.c_str());
+			}
+		catch (...) {
+			printf("\nEXCEPTION : %s", sFNnn.c_str());
+			printf("");
+			exit(98);
+			}
 		printf("\nOK : loaded file %s", sFNnn.c_str());
 		fNN->_modelIsGood = true ;
         fNN->CreateNNtensor() ;
