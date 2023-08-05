@@ -372,7 +372,7 @@ public :
 		return adr ;
 	}
 
-	inline int32_t FillInOneHotNNinput(at::Tensor & input, const int32_t *NativeAssignment, const int32_t *DomainSizes)
+	inline int32_t FillInOneHotNNinput(at::Tensor & input, const int32_t *BEPathAssignment, const int32_t *DomainSizes)
 	{
 		if (_nArgs <= 0)
 			return 0;
@@ -395,7 +395,10 @@ public :
 		for (int32_t i = 0 ; i < _nArgs ; ++i) {
 			int32_t var = _Arguments[i] ;
 			int32_t k = DomainSizes[var] ;
-			int32_t val = NativeAssignment[var] ;
+			int32_t val = BEPathAssignment[_ArgumentsPermutationList[i]] ; //  NativeAssignment[var];
+			if (val < 0 || val >= k) {
+				int bug = 1;
+				}
 			if (val > 0) 
 				e[j + (val-1)] = (float) 1.0;
 			j += k-1 ;
