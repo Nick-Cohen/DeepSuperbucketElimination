@@ -1837,6 +1837,8 @@ int32_t BucketElimination::MBEworkspace::ComputeOutputFunctions(bool DoMomentMat
 
 	int32_t i ;
 
+LogConsole = true;
+
 #ifdef SAMPLE_BUCKET_TEST
 	BucketElimination::Bucket *bMax = nullptr ;
 #endif
