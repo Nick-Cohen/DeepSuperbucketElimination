@@ -1862,7 +1862,7 @@ LogConsole = true;
 		if (LogConsole) {
 			BucketElimination::MiniBucket *mb0 = b->nMiniBuckets() > 0 ? (b->MiniBuckets())[0] : nullptr ;
 			ARE::Function *f0 = nullptr != mb0 ? &(mb0->OutputFunction()) : nullptr ;
-			printf("\n   i=%d idxBucket=%d bVar=%d bWidth=%d outputFNsize=%lld", 
+			printf("\n   i=%d idxBucket=%d bVar=%d bWidth=%d outputFNsize=%lld\n", 
 				i, (int32_t) b->IDX(), (int32_t) b->V(), (int32_t) b->Width(), (int64_t) (nullptr != f0 ? f0->TableSize() : -1)) ;
 			}
 		int32_t res_mbe = b->ComputeOutputFunctions(DoMomentMatching, approx_bound, size) ;
