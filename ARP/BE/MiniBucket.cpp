@@ -902,7 +902,14 @@ do_next_elim_config :
 			goto done_with_this_elim_config ; // all elimination combinations have been enumerated...
 		value = bews->FnCombinationNeutralValue() ;
 		for (j = 0 ; j < nFNs ; j++) {
-			double fn_v = flist[j]->TableEntryEx(currentValueSet.get(), problem->K()) ; // NEW
+			try {
+				double fn_v = flist[j]->TableEntryEx(currentValueSet.get(), problem->K()); // NEW
+				}
+			catch (...) {
+				printf("\nEXCEPTION : flist[j]->TableEntryEx(...) in BucketElimination::MiniBucket::ComputeOutputFunction(...)") ;
+				printf("\n");
+				exit(151) ;
+				}
 //			adr = flist[j]->ComputeFnTableAdr_wrtLocalPermutation(values, problem->K()) ;
 //			bews->ApplyFnCombinationOperator(value, flist[j]->TableEntry(adr)) ;
 			bews->ApplyFnCombinationOperator(value, fn_v) ;
