@@ -1864,7 +1864,7 @@ int32_t BucketElimination::MBEworkspace::ComputeOutputFunctions(bool DoMomentMat
 				i, (int32_t) b->IDX(), (int32_t) b->V(), (int32_t) b->Width(), (int64_t) (nullptr != f0 ? f0->TableSize() : -1)) ;
 			}
 		int32_t res_mbe = b->ComputeOutputFunctions(DoMomentMatching, approx_bound, size) ;
-//printf("\nDEBUGGG i=%d done res=%d", i, res_mbe) ;
+printf("\nDEBUGGG i=%d done res=%d", i, res_mbe); printf("\n");
 		if (LogConsole) 
 			printf(" res=%d", res_mbe) ;
 		if (0 != res_mbe) 
