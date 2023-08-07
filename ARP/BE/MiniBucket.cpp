@@ -902,8 +902,9 @@ do_next_elim_config :
 			goto done_with_this_elim_config ; // all elimination combinations have been enumerated...
 		value = bews->FnCombinationNeutralValue() ;
 		for (j = 0 ; j < nFNs ; j++) {
+			double fn_v = 0.0 ;
 			try {
-				double fn_v = flist[j]->TableEntryEx(currentValueSet.get(), problem->K()); // NEW
+				fn_v = flist[j]->TableEntryEx(currentValueSet.get(), problem->K()); // NEW
 				}
 			catch (...) {
 				printf("\nEXCEPTION : flist[j]->TableEntryEx(...) in BucketElimination::MiniBucket::ComputeOutputFunction(...)") ;
