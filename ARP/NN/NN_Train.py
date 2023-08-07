@@ -61,7 +61,7 @@ class NN_Data:
         # Convert lists to PyTorch tensors
         signatures_tensor = t.tensor(signatures_list).to(self.device)
         values_tensor = t.tensor(values_list).to(self.device)
-        self.max_value = float(max(values_tensor))
+        self.max_value = float(t.exp(t.log(t.tensor(10)) * max(values_tensor))) # take max value exponentiated out of log space
 
         self.signatures, self.values = signatures_tensor, values_tensor
         self.values[self.values == float('-inf')] = -1e10
@@ -144,8 +144,8 @@ class Net(nn.Module):
                 values_batch[values_batch == float('-inf')] = -1e10
 
                 # Convert predictions and values from log space to original scale
-                pred_values_exp = t.exp(pred_values)
-                values_exp = t.exp(values_batch.view(-1, 1))
+                pred_values_exp = t.exp(pred_values * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
+                values_exp = t.exp(values_batch.view(-1, 1) * t.log(t.tensor(10)))
                 assert(pred_values_exp.device.type==self.device) #################################
                 assert(values_exp.device.type==self.device) #################################
 
