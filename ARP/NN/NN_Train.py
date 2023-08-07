@@ -19,7 +19,7 @@ import argparse
 
 class NN_Data:
 
-    def __init__(self, file_name = None, processed_samples = None, values = None, device = 'cuda'):
+    def __init__(self, file_name = None, processed_samples = None, values = None, device = 'cpu'):
         self.file_name = file_name
         self.num_samples: int
         self.features_per_sample: int
@@ -61,6 +61,7 @@ class NN_Data:
         # Convert lists to PyTorch tensors
         signatures_tensor = t.tensor(signatures_list).to(self.device)
         values_tensor = t.tensor(values_list).to(self.device)
+        self.max_value = float(max(values_tensor))
 
         self.signatures, self.values = signatures_tensor, values_tensor
         self.values[self.values == float('-inf')] = -1e10
@@ -97,6 +98,7 @@ class Net(nn.Module):
         super(Net, self).__init__()
         self.linear = linear
         self.nn_data = nn_data
+        self.max_value = nn_data.max_value
         self.num_samples = self.nn_data.num_samples
         self.device = nn_data.device
         self.values = nn_data.values.float().to(self.device)
@@ -148,7 +150,8 @@ class Net(nn.Module):
                 assert(values_exp.device.type==self.device) #################################
 
                 # Compute loss
-                loss = self.loss_fn(pred_values_exp, values_exp)
+                # loss = self.loss_fn(pred_values_exp, values_exp)
+                loss = (1/self.max_value) * self.loss_fn(pred_values_exp, values_exp) # Added 1/max_value
                 assert(loss.device.type==self.device) #################################
                 
 
