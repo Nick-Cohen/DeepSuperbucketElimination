@@ -43,6 +43,8 @@ int32_t ARE::FunctionNN::CreateNNtensor(void)
 		}
 	_input = torch::zeros({ 1, _OneHotArgVectorLength }) ;
 	_inputs.push_back(_input) ;
+	printf("\n1Hot vector created _OneHotArgVectorLength=%d", _OneHotArgVectorLength);
+	printf("\n");
 	return 0 ;
 }
 
