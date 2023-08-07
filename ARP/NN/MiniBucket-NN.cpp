@@ -35,13 +35,13 @@
 int32_t ARE::FunctionNN::CreateNNtensor(void)
 {
 	const int32_t* DomainSizes = _Problem->K() ;
-	int nBits = -_nArgs ;
+	_OneHotArgVectorLength = -_nArgs ;
 	for (int32_t i = 0 ; i < _nArgs ; ++i) {
 		int32_t var = _Arguments[i] ;
 		int32_t k = DomainSizes[var] ;
-		nBits += k ;
+		_OneHotArgVectorLength += k ;
 		}
-	_input = torch::zeros({ 1, nBits }) ;
+	_input = torch::zeros({ 1, _OneHotArgVectorLength }) ;
 	_inputs.push_back(_input) ;
 	return 0 ;
 }
@@ -192,7 +192,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		fclose(fp) ;
 	}
 
-//sFNnn = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\nn-202.jit";
+//sFNnn = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\nn-202-cpu.jit";
 //sFNsignalling = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\ready-202.jit";
 
 	// construct command line string

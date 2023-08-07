@@ -112,6 +112,7 @@ protected :
 	int32_t *_Arguments ; // a list of variables; size of the array is N. in case of Bayesian CPTs, the child variable is last.
 	int32_t *_SortedArgumentsList ; // in non-decresasing order; created on-demand.
 	int32_t *_ArgumentsPermutationList ; // this is a list of indeces of the arguments of this fn wrt some other ordering of variables. it is allocated when _Arguments is allocated. this array is used when values of the variables come not from a global array of size [0,N), but from a local array.
+	int32_t _OneHotArgVectorLength ;
 public :
 	inline int32_t N(void) const { return _nArgs ; }
 	inline int32_t Argument(int32_t IDX) const { return _Arguments[IDX] ; }
@@ -399,8 +400,15 @@ public :
 			if (val < 0 || val >= k) {
 				int bug = 1;
 				}
-			if (val > 0) 
-				e[j + (val-1)] = (float) 1.0;
+			if (val > 0) {
+				int32_t adr = j + (val - 1) ;
+				if (adr < 0 || adr >= _OneHotArgVectorLength) {
+					printf("\n1Hot adr out of bounds adr=%d _OneHotArgVectorLength=%d", adr, _OneHotArgVectorLength);
+					printf("\n");
+					exit(153);
+					}
+				e[adr] = (float)1.0;
+				}
 			j += k-1 ;
 			}
 	}
@@ -670,6 +678,7 @@ public :
 			_SortedArgumentsList = NULL ;
 			}
 		_nArgs = 0 ;
+		_OneHotArgVectorLength = -1 ;
 		_BayesianCPTChildVariable = -1 ;
 		_IsQueryIrrelevant = false ;
 		_CurrentValue = _ConstValue = DBL_MAX ;
@@ -684,6 +693,7 @@ public :
 		_nArgs(0), 
 		_Arguments(NULL), 
 		_ArgumentsPermutationList(NULL), 
+		_OneHotArgVectorLength(-1),
 		_SortedArgumentsList(NULL), 
 		_Bucket(NULL), 
 		_OriginatingBucket(NULL), 
@@ -705,6 +715,7 @@ public :
 		_nArgs(0), 
 		_Arguments(NULL), 
 		_ArgumentsPermutationList(NULL), 
+		_OneHotArgVectorLength(-1), 
 		_SortedArgumentsList(NULL), 
 		_Bucket(NULL), 
 		_OriginatingBucket(NULL), 
