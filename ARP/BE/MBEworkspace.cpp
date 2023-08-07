@@ -1874,7 +1874,7 @@ printf("\nDEBUGGG i=%d done res=%d", i, res_mbe); printf("\n");
 		TotalSumOutputFunctionsNumEntries += size ;
 		b->NoteOutputFunctionComputationCompletion() ;
 		if (LogConsole)
-			printf(" this bucket done...");
+			printf(" this bucket done...\n");
 		}
 
 #ifdef SAMPLE_BUCKET_TEST
