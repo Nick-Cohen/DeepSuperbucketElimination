@@ -126,6 +126,7 @@ BucketElimination::MBEworkspace::MBEworkspace(const char *BEEMDiskSpaceDirectory
 	_Var2BucketMapping(NULL), 
 //	_BTchildlistStorage(NULL), 
 	_DeleteUsedTables(false), 
+	_maxNumNNsamples(1000), 
 	_EClimit(-1), 
 	_iBound(1000000), 
 	_VarOrdering_MaxCliqueSize(-1), 

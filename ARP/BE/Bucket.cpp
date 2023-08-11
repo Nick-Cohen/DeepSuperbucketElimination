@@ -1446,6 +1446,7 @@ if (_IDX < 2000) {
 	for (MiniBucket *mb : _MiniBuckets) {
 		ARE::FnConstructor f = ARE::FunctionConstructor ; // MBoutputfncnstrctr(*mb) ;
 		int32_t nOutputFnVars = mb->Width() - mb->nVars() ;
+printf("i=%d nOutputFnVars=%d iBound=%d", _IDX, nOutputFnVars, iBound) ;
 		if (nOutputFnVars > iBound-1 && MB_outputfn_type_NN == _Workspace->MBoutputFnTypeWhenOverIBound()) {
 			f = (ARE::FnConstructor) ARE::FunctionNNConstructor ;
 			printf("\nCreating NN function") ;

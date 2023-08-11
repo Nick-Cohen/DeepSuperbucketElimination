@@ -39,6 +39,8 @@ protected :
 	// a flag indicating how to process a MB when output fn signature is more than iBound-1 (iBound-1 is the max output fn signature size)...
 	MB_outputfn_type _MBoutputFnTypeWhenOverIBound ; // default = MB_outputfn_type_table
 
+	int64_t _maxNumNNsamples; // default is 1000
+
 	int32_t _VarOrdering_MaxCliqueSize ; // maximum clique size in variable elimination algorithms; induced width = MaxCliqueSize-1
 	int32_t _PseudoWidth ; // induced width of the Mini-Bucket Elimination given current i-Bound
 
@@ -94,6 +96,8 @@ public :
 	inline FILE * & logFile(void) { return _fpLOG ; }
 
 	inline MB_outputfn_type & MBoutputFnTypeWhenOverIBound(void) { return _MBoutputFnTypeWhenOverIBound ;  }
+
+	inline int64_t & maxNumNNsamples(void) { return _maxNumNNsamples ; }
 
 	int32_t GetFirstQueryRootVariable(void)
 	{

@@ -158,7 +158,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		}
 
 	// generate samples...
-	int64_t nSamples = 1000 ;
+	int64_t nSamples = bews->maxNumNNsamples(); if (nSamples < 1) nSamples = 1;
 	int32_t nFeaturesPerSample = -1 ; //
 	std::unique_ptr<int16_t[]> samples_signature ; 
 	std::unique_ptr<float[]> samples_values ;
@@ -194,13 +194,13 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		fclose(fp) ;
 	}
 
-//sFNnn = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\nn-202-cpu.jit";
-//sFNsignalling = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\ready-202.jit";
+sFNnn = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\nn-202-cpu.jit";
+sFNsignalling = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\ready-202.jit";
 
 	// construct command line string
 	sprintf(buf, "python3 /home/cohenn1/SDBE/Super_Buckets/ARP/NN/NN_Train.py --samples \"%s\" --nn_path \"%s\" --done_path \"%s\"", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
 	// just in case delete signalling file...
-	DeleteFile(sFNsignalling.c_str());
+//	DeleteFile(sFNsignalling.c_str());
 	// launch python training script
 	printf("\nWILL RUN COMMAND LINE : \n   ");
 	printf(buf);
