@@ -61,6 +61,10 @@ class NN_Data:
         # Convert lists to PyTorch tensors
         signatures_tensor = t.tensor(signatures_list).to(self.device)
         values_tensor = t.tensor(values_list).to(self.device)
+
+        # Replace -inf with a large negative number
+        values_tensor[values_tensor == float('-inf')] = -1e10
+        
         self.max_value = float(t.exp(t.log(t.tensor(10)) * max(values_tensor))) # take max value exponentiated out of log space
 
         self.signatures, self.values = signatures_tensor, values_tensor
@@ -94,21 +98,20 @@ class NN_Data:
 # %%
 class Net(nn.Module):
     # def __init__(self, input_size, hidden_size, output_size):
-    def __init__(self, nn_data: NN_Data, linear=False):
+    def __init__(self, nn_data: NN_Data, epochs = 1000):
         super(Net, self).__init__()
-        self.linear = linear
         self.nn_data = nn_data
         self.max_value = nn_data.max_value
         self.num_samples = self.nn_data.num_samples
+        self.epochs = epochs
         self.device = nn_data.device
         self.values = nn_data.values.float().to(self.device)
-        input_size, hidden_size = len(nn_data.input_vectors[0]), len(nn_data.input_vectors[0])//2
+        input_size, hidden_size = len(nn_data.input_vectors[0]), len(nn_data.input_vectors[0])*2
         output_size = 1
         self.fc1 = nn.Linear(input_size, hidden_size).to(self.device)
+        self.fc2 = nn.Linear(hidden_size, hidden_size).to(self.device)
+        self.fc3 = nn.Linear(hidden_size, output_size).to(self.device)
         self.relu = nn.ReLU().to(self.device)
-        if not linear:
-            self.fc2 = nn.Linear(hidden_size, hidden_size).to(self.device)
-            self.fc3 = nn.Linear(hidden_size, output_size).to(self.device)
 
         # self.loss_fn = nn.MSELoss()
         self.loss_fn = nn.L1Loss()
@@ -117,16 +120,17 @@ class Net(nn.Module):
     def forward(self, x):
         out = self.fc1(x)
         out = self.relu(out)
-        if not self.linear:
-            out = self.fc2(out)
-            out = self.relu(out)
-            out = self.fc3(out)
+        out = self.fc2(out)
+        out = self.relu(out)
+        out = self.fc3(out)
         return out
     
-    def train_model(self, epochs=1000, batch_size=100):
+    def train_model(self, batch_size=100):
+        epochs = self.epochs
         X=self.nn_data.input_vectors#.float()
         assert(X.device.type==self.device) ############################################################
         num_batches = int(self.num_samples / batch_size)
+        print(self.num_samples, batch_size, num_batches)
 
         for epoch in range(epochs):
             for i in range(num_batches):
@@ -139,9 +143,6 @@ class Net(nn.Module):
                 pred_values = self(X_batch)
                 assert(pred_values.device.type==self.device) #################################
 
-                # Replace -inf with a large negative number
-                # pred_values[pred_values == float('-inf')] = -1e10
-                values_batch[values_batch == float('-inf')] = -1e10
 
                 # Convert predictions and values from log space to original scale
                 pred_values_exp = t.exp(pred_values * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
@@ -151,7 +152,14 @@ class Net(nn.Module):
 
                 # Compute loss
                 # loss = self.loss_fn(pred_values_exp, values_exp)
-                loss = (1/self.max_value) * self.loss_fn(pred_values_exp, values_exp) # Added 1/max_value
+                loss = t.e**(-self.max_value) * self.loss_fn(pred_values_exp, values_exp) # Added 1/max_value
+                # print(f'Predicted value is: {pred_values[0].item()}')
+                # print(f'True value is:      {values_batch.view(-1, 1)[0].item()}')
+                # print(f'Exp pred value is:  {pred_values_exp[0].item()}')
+                # print(f'Exp true value is:  {values_exp[0].item()}')
+                # print(f'Loss is:            {loss.item()}')
+                # print(f'Max value is:       {self.max_value}')
+
                 assert(loss.device.type==self.device) #################################
                 
 
@@ -189,7 +197,7 @@ class Net(nn.Module):
 
 def main(file_name, nn_save_path):
     data = NN_Data(file_name)
-    nn = Net(data)
+    nn = Net(data, epochs=10)
     nn.train_model()
     if nn_save_path is not None:
         nn.save_model(nn_save_path)

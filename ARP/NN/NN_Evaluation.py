@@ -63,17 +63,32 @@ def table_histogram(values):
     plt.xlabel('Value')
     plt.ylabel('Frequency')
     plt.show()
-#%%
-data_train = NN_Data('../../BESampling/samples-39;104;141-full.xml',device='cpu')
-data_test = NN_Data('../../BESampling/samples-39;104;141-full.xml',device='cpu')
-nn = Net(data_train,linear=False)
-nn.train_model(epochs=100)
-# %%
-evaluate_error_as_function_of_table_value_size(nn, data_test)
-# %%
-table_histogram(t.exp(data_test.values))
-# %%
-err_by_var = evaluate_error_by_variable_values(nn,data_test, show_plot=True)
-# %%
-# %%
 
+def test_load_from_jit(savedNN, data):
+    model = t.jit.load(savedNN)
+    print('abc')
+    for i in range(len(data.input_vectors)):
+        print(float(model(data.input_vectors[i])),float(data.values[i]))
+
+#%%
+data_train = NN_Data('/home/cohenn1/SDBE/Super_Buckets/BESampling/samples-202.xml',device='cpu')
+data_test = NN_Data('/home/cohenn1/SDBE/Super_Buckets/BESampling/samples-202.xml',device='cpu')
+nn = Net(data_train, epochs = 10000)
+nn.train_model(batch_size=1000)
+nn.save_model('test202.jit')
+# %%
+test_load_from_jit('/home/cohenn1/SDBE/Super_Buckets/ARP/NN/test202.jit', data_train)
+
+# #%%
+# evaluate_error_as_function_of_table_value_size(nn, data_test)
+# # %%
+# table_histogram(t.exp(data_test.values))
+# # %%
+# err_by_var = evaluate_error_by_variable_values(nn,data_test, show_plot=True)
+# # %%
+# # %%
+# data_train = NN_Data('/home/cohenn1/SDBE/Super_Buckets/BESampling/samples-202.xml',device='cpu')
+# #%%
+# # %%
+
+# %%
