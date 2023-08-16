@@ -378,10 +378,10 @@ public :
 		if (_nArgs <= 0)
 			return 0;
 		int l = input.numel() ;
-		if (l != _nArgs) {
-			input = torch::zeros({ 1, _nArgs }) ;
-			l = input.numel();
-			if (l != _nArgs)
+		if (_OneHotArgVectorLength <= 0 || l != _OneHotArgVectorLength) {
+//			input = torch::zeros({ 1, _nArgs }) ;
+//			l = input.numel();
+//			if (l != _nArgs)
 				return 1 ;
 			}
 		else {
@@ -391,6 +391,8 @@ public :
 				e[i] = (float)0.0;
 			}
 		int32_t j = 0 ; // j points to the beginning on the variable's one-hot encoding bits...
+// print out input to see type...
+//std::cout << "input = " << input << "\n";
 		void *ptr = input.data_ptr() ;
 		float *e = (float *) ptr ;
 		for (int32_t i = 0 ; i < _nArgs ; ++i) {
@@ -411,6 +413,7 @@ public :
 				}
 			j += k-1 ;
 			}
+		return 0;
 	}
 
 	// assume the value of variable i is at NativeAssignment[i]

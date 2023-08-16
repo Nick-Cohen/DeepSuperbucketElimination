@@ -402,7 +402,8 @@ bool isT = ip.isTensor() ;
 	int32_t iBoundMin = 2 ;
 	int32_t ib, nBP, maxDPB ; double spaceused ;
 	bool noPartitioning = true ;
-//	ws.MBoutputFnTypeWhenOverIBound() = MB_outputfn_type_NN ; // if MB output fn is too large, use NN to approximate it...
+	ws.MBoutputFnTypeWhenOverIBound() = MB_outputfn_type_NN ; // if MB output fn is too large, use NN to approximate it...
+	ws.maxNumNNsamples() = nsamples > 0 ? nsamples : 1000 ;
 	if (iB < 0) {
 		int64_t tIBfindS = ARE::GetTimeInMilliseconds() ;
 		// this will find best iB (in the process compute partitioning) ...
