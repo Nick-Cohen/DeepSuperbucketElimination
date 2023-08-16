@@ -137,22 +137,31 @@ class Net(nn.Module):
                 # Get mini-batch
                 X_batch = X[i*batch_size : (i+1)*batch_size]
                 values_batch = self.values[i*batch_size : (i+1)*batch_size]
-                assert(values_batch.device.type==self.device) #################################
 
                 # Predict
                 pred_values = self(X_batch)
-                assert(pred_values.device.type==self.device) #################################
 
 
-                # Convert predictions and values from log space to original scale
-                pred_values_exp = t.exp(pred_values * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
-                values_exp = t.exp(values_batch.view(-1, 1) * t.log(t.tensor(10)))
-                assert(pred_values_exp.device.type==self.device) #################################
-                assert(values_exp.device.type==self.device) #################################
+                # Convert predictions and values from log space to original scale minus max value
+                pred_values_exp_adjusted = t.exp(pred_values - self.max_value * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
+                values_exp_adjusted = t.exp(values_batch.view(-1, 1) - self.max_value * t.log(t.tensor(10)))
+                
+                # # Convert predictions and values from log space to original scale
+                # pred_values_exp = t.exp(pred_values * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
+                # values_exp = t.exp(values_batch.view(-1, 1) * t.log(t.tensor(10)))
 
                 # Compute loss
+                loss = self.loss_fn(pred_values, values_batch.view(-1, 1))
+                # print(pred_values_exp_adjusted)
+                # print(loss)
+                # stop
+                
+                # Absolute error
                 # loss = self.loss_fn(pred_values_exp, values_exp)
-                loss = t.e**(-self.max_value) * self.loss_fn(pred_values_exp, values_exp) # Added 1/max_value
+                
+                # Absolute error times 1/max value in non log space
+                # loss = t.e**(-self.max_value) * self.loss_fn(pred_values_exp, values_exp) # Added 1/max_value
+                
                 # print(f'Predicted value is: {pred_values[0].item()}')
                 # print(f'True value is:      {values_batch.view(-1, 1)[0].item()}')
                 # print(f'Exp pred value is:  {pred_values_exp[0].item()}')
@@ -197,7 +206,7 @@ class Net(nn.Module):
 
 def main(file_name, nn_save_path):
     data = NN_Data(file_name)
-    nn = Net(data, epochs=10)
+    nn = Net(data, epochs=1000)
     nn.train_model()
     if nn_save_path is not None:
         nn.save_model(nn_save_path)
