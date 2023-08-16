@@ -22,11 +22,13 @@ dim="1"					# vary the hidden dimensions of the neural net
 e="0.35"					# needed to determine #samples. Eq: nSamples = int((pd + log(1/delta))/global_config.epsilon);
 
 # WMB variables
-iB=10
-ecl=100
+iB=8
+ecl=10
+nsamples=10000
 
 # Kalev's cmd line input -fUAI C:\UCI\pedigree\pedigree1.uai -fVO C:\UCI\pedigree\pedigree1.uai.vo -iB 13 -EClimit 1000000, gets 15 merges
 
 
-echo ./build/BESampling -fUAI $problem -fVO $elim_order -iB $iB -EClimit $ecl -nsamples 10 -batch_size $batch_size -lr $learning_rate -n_epochs $n_epochs --network $network --out_file ${results_prefix}${epsilon}_${dim}_${s_m} --sampling_method $s_m --width_problem $width_problem --stop_iter $stop_iter --var_dim $dim --epsilon $epsilon 
-./build/BESampling -fUAI $problem -fVO $elim_order -iB $iB -EClimit $ecl -nsamples 10 -batch_size $batch_size -lr $learning_rate -n_epochs $n_epochs --network $network --out_file ${results_prefix}${epsilon}_${dim}_${s_m} --sampling_method $s_m --width_problem $width_problem --stop_iter $stop_iter --var_dim $dim --epsilon $epsilon 
+
+echo ./build/BESampling -fUAI $problem -fVO $elim_order -iB $iB -nsamples $nsamples -EClimit $ecl -nsamples 10 -batch_size $batch_size -lr $learning_rate -n_epochs $n_epochs --network $network --out_file ${results_prefix}${epsilon}_${dim}_${s_m} --sampling_method $s_m --width_problem $width_problem --stop_iter $stop_iter --var_dim $dim --epsilon $epsilon 
+./build/BESampling -fUAI $problem -fVO $elim_order -iB $iB -nsamples $nsamples -EClimit $ecl -nsamples 10 -batch_size $batch_size -lr $learning_rate -n_epochs $n_epochs --network $network --out_file ${results_prefix}${epsilon}_${dim}_${s_m} --sampling_method $s_m --width_problem $width_problem --stop_iter $stop_iter --var_dim $dim --epsilon $epsilon 
