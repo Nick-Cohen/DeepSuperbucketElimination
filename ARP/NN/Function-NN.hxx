@@ -63,6 +63,7 @@ public :
 		return 0 ;
 	}
 
+	virtual ARE_Function_TableType TableEntryExNativeAssignment(int32_t* NativeAssignment, const int32_t* K) ;
 	virtual ARE_Function_TableType TableEntryEx(int32_t* BEPathAssignment, const int32_t* K) ;
 	/*
 		desc = return fn value corresponding to given input configuration...
