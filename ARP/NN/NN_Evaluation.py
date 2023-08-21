@@ -1,6 +1,10 @@
 #%%
 import matplotlib.pyplot as plt
 import os
+import NN_Train
+print(NN_Train.__file__)
+import importlib
+importlib.reload(NN_Train)
 from NN_Train import Net, NN_Data
 import torch as t
 
@@ -64,20 +68,49 @@ def table_histogram(values):
     plt.ylabel('Frequency')
     plt.show()
 
-def test_load_from_jit(savedNN, data):
+def test_load_from_jit(savedNN, data: NN_Data):
     model = t.jit.load(savedNN)
-    print('abc')
+
+    # Print column labels
+    print("{:<12} {:<12}".format("Predict", "TrueVal"))
+
     for i in range(len(data.input_vectors)):
-        print(float(model(data.input_vectors[i])),float(data.values[i]))
+        columns = []
+        if data.transform_data:
+            prediction_t, true_value_t = float(data.reverse_transform(model(data.input_vectors[i]))), float(data.reverse_transform(data.values[i]))
+            columns.append([true_value_t])
+            columns.append([prediction_t])
+        prediction, true_value = float(model(data.input_vectors[i])), float(data.values[i])
+        columns.append([true_value])
+        columns.append([prediction])
+        
+        # Zip the columns, sort by the first column, then unzip
+        sorted_columns = list(zip(*sorted(zip(*columns), key=lambda x: x[0])))
+
+        # Convert the tuples back to lists
+        sorted_columns = [list(column) for column in sorted_columns]
+        
+        # Transpose sorted_columns to iterate by rows
+        rows = list(zip(*sorted_columns))
+
+        # Print each row with 8 significant digits for each element, using a fixed width of 12 characters
+        for row in rows:
+            print(' '.join('{:<12.8g}'.format(item) for item in row))
+
+
 
 #%%
-data_train = NN_Data('/home/cohenn1/SDBE/Super_Buckets/BESampling/samples-202.xml',device='cpu')
-data_test = NN_Data('/home/cohenn1/SDBE/Super_Buckets/BESampling/samples-202.xml',device='cpu')
-nn = Net(data_train, epochs = 10000)
+samples_path = '/home/cohenn1/SDBE/Super_Buckets/BESampling/samples-25;36;47.xml'
+data_train = NN_Data(samples_path, device='cpu', transform_data=True)
+data_test = NN_Data(samples_path, device='cpu', transform_data=True)
+nn = Net(data_train, epochs = 1000)
 nn.train_model(batch_size=1000)
-nn.save_model('test202.jit')
+nn.save_model('test25;36;47.jit')
 # %%
-test_load_from_jit('/home/cohenn1/SDBE/Super_Buckets/ARP/NN/test202.jit', data_train)
+jit_path = '/home/cohenn1/SDBE/Super_Buckets/ARP/NN/test25;36;47.jit'
+test_load_from_jit(jit_path, data_train)
+#%%
+
 
 # #%%
 # evaluate_error_as_function_of_table_value_size(nn, data_test)

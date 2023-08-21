@@ -19,7 +19,7 @@ import argparse
 
 class NN_Data:
 
-    def __init__(self, file_name = None, processed_samples = None, values = None, device = 'cpu'):
+    def __init__(self, file_name = None, processed_samples = None, values = None, device = 'cpu', transform_data = False):
         self.file_name = file_name
         self.num_samples: int
         self.features_per_sample: int
@@ -33,6 +33,7 @@ class NN_Data:
         self.is_positive: t.BoolTensor # (num_samples,1) indicates if table has non-zero value: True or zero: False
         self.domain_sizes: t.IntTensor
         self.device = device
+        self.transform_data = transform_data
         if file_name is not None:
             try:
                  self.parse_samples()
@@ -69,6 +70,29 @@ class NN_Data:
 
         self.signatures, self.values = signatures_tensor, values_tensor
         self.values[self.values == float('-inf')] = -1e10
+        
+        # Transform or normalize the data
+        if self.transform_data:
+            # values -> 10^(values - max value) then normalize to mean 1
+
+            # find max value
+            self.max_value = max(self.values)
+            # print('max_value is ', max_value)
+            
+            # subtract max value
+            self.values = self.values - self.max_value
+            # print('after max subtraction, values_tensor[0] is ', self.values[0])
+            
+            # exponentiate base 10
+            self.values = t.pow(10, self.values)
+            # print('after exp subtraction, values_tensor[0] is ', self.values[0])
+            
+            # normalize to mean 1
+            self.mean_transformation_constant = t.mean(self.values)
+            print('mean is ', self.mean_transformation_constant)
+            self.values = t.div( self.values, self.mean_transformation_constant)
+            print('self.values[0:10] is ', self.values[0:10])
+            
         self.is_positive = self.values.ne(float('-inf'))
         
 
@@ -76,6 +100,13 @@ class NN_Data:
         domain_sizes = [int(x) for x in root.get('outputfnvariabledomainsizes').split(';')]
         self.domain_sizes = t.IntTensor(domain_sizes).to(self.device)
         self.input_vectors = (self.one_hot_encode(self.signatures).float()).to(self.device)
+        
+    def reverse_transform(self, tensor):
+        output = tensor * self.mean_transformation_constant
+        output = t.log10(tensor)
+        output = output + self.max_value
+        output[t.isnan(output)] = 0
+        return output
 
 
 
