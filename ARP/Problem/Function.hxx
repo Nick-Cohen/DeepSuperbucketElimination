@@ -373,7 +373,50 @@ public :
 		return adr ;
 	}
 
-	inline int32_t FillInOneHotNNinput(at::Tensor & input, const int32_t *BEPathAssignment, const int32_t *DomainSizes)
+	inline int32_t FillInOneHotNNinput_wrtNativeAssignemnt(at::Tensor& input, const int32_t* NativeAssignment, const int32_t* DomainSizes)
+	{
+		if (_nArgs <= 0)
+			return 0;
+		int l = input.numel();
+		if (_OneHotArgVectorLength <= 0 || l != _OneHotArgVectorLength) {
+			//			input = torch::zeros({ 1, _nArgs }) ;
+			//			l = input.numel();
+			//			if (l != _nArgs)
+			return 1;
+		}
+		else {
+			void* ptr = input.data_ptr();
+			float* e = (float*)ptr;
+			for (int32_t i = 0; i < l; ++i)
+				e[i] = (float)0.0;
+		}
+		int32_t j = 0; // j points to the beginning on the variable's one-hot encoding bits...
+		// print out input to see type...
+		//std::cout << "input = " << input << "\n";
+		void* ptr = input.data_ptr();
+		float* e = (float*)ptr;
+		for (int32_t i = 0; i < _nArgs; ++i) {
+			int32_t var = _Arguments[i];
+			int32_t k = DomainSizes[var];
+			int32_t val = NativeAssignment[var]; //  NativeAssignment[var];
+			if (val < 0 || val >= k) {
+				int bug = 1;
+			}
+			if (val > 0) {
+				int32_t adr = j + (val - 1);
+				if (adr < 0 || adr >= _OneHotArgVectorLength) {
+					printf("\n1Hot adr out of bounds adr=%d _OneHotArgVectorLength=%d wrtNativeAssignemnt", adr, _OneHotArgVectorLength);
+					printf("\n");
+					exit(153);
+				}
+				e[adr] = (float)1.0;
+			}
+			j += k - 1;
+		}
+		return 0;
+	}
+
+	inline int32_t FillInOneHotNNinput_wrtPermutationList(at::Tensor & input, const int32_t *BEPathAssignment, const int32_t *DomainSizes)
 	{
 		if (_nArgs <= 0)
 			return 0;
@@ -405,7 +448,7 @@ public :
 			if (val > 0) {
 				int32_t adr = j + (val - 1) ;
 				if (adr < 0 || adr >= _OneHotArgVectorLength) {
-					printf("\n1Hot adr out of bounds adr=%d _OneHotArgVectorLength=%d", adr, _OneHotArgVectorLength);
+					printf("\n1Hot adr out of bounds adr=%d _OneHotArgVectorLength=%d wrtPermutationList", adr, _OneHotArgVectorLength);
 					printf("\n");
 					exit(153);
 					}
@@ -487,11 +530,12 @@ public :
 		__int64 IDX = ComputeFnTableAdr_wrtLocalPermutation(BEPathAssignment, K) ;
 		return _TableData[IDX] ;
 	}
-	inline ARE_Function_TableType TableEntryExNativeAssignment(int32_t *NativeAssignment, const int32_t *K) const 
+	virtual ARE_Function_TableType TableEntryExNativeAssignment(int32_t *NativeAssignment, const int32_t *K) 
 	{
 		if (_nArgs <= 0) 
 			return _ConstValue ;
-		return _TableData[ComputeFnTableAdr_Native(NativeAssignment, K)] ;
+		int64_t adr = ComputeFnTableAdr_Native(NativeAssignment, K) ;
+		return _TableData[adr] ;
 	}
 	virtual ARE_Function_TableType TableEntryEx(int32_t *BEPathAssignment, const int32_t *K)  
 	/*
