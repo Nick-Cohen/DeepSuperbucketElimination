@@ -48,14 +48,14 @@ int32_t ARE::FunctionNN::CreateNNtensor(void)
 	return 0 ;
 }
 
-ARE_Function_TableType ARE::FunctionNN::TableEntryEx(int32_t* BEPathAssignment, const int32_t* DomainSizes)
+ARE_Function_TableType ARE::FunctionNN::TableEntryExNativeAssignment(int32_t* NativeAssignment, const int32_t* DomainSizes)
 {
 	ARE_Function_TableType out_value = 0.0 ;
 
 	if (!_modelIsGood)
 		return out_value ;
 
-	int32_t res = FillInOneHotNNinput(_input, BEPathAssignment, DomainSizes) ;
+	int32_t res = FillInOneHotNNinput_wrtNativeAssignemnt(_input, NativeAssignment, DomainSizes) ;
 	if (0 != res)
 		return out_value;
 	at::Tensor output = _model.forward(_inputs).toTensor();
@@ -63,6 +63,25 @@ ARE_Function_TableType ARE::FunctionNN::TableEntryEx(int32_t* BEPathAssignment, 
 	float* e = (float*)ptr;
 	out_value = *e;
 //	out_value = output.slice(/*dim=*/1, /*start=*/0, /*end=*/5) ;
+
+	return out_value;
+}
+
+ARE_Function_TableType ARE::FunctionNN::TableEntryEx(int32_t* BEPathAssignment, const int32_t* DomainSizes)
+{
+	ARE_Function_TableType out_value = 0.0;
+
+	if (!_modelIsGood)
+		return out_value;
+
+	int32_t res = FillInOneHotNNinput_wrtPermutationList(_input, BEPathAssignment, DomainSizes);
+	if (0 != res)
+		return out_value;
+	at::Tensor output = _model.forward(_inputs).toTensor();
+	void* ptr = output.data_ptr();
+	float* e = (float*)ptr;
+	out_value = *e;
+	//	out_value = output.slice(/*dim=*/1, /*start=*/0, /*end=*/5) ;
 
 	return out_value;
 }
@@ -158,8 +177,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		}
 
 	// generate samples...
-	int64_t nSamples = 1000;
-	// int64_t nSamples = bews->maxNumNNsamples(); if (nSamples < 1) nSamples = 1;
+	int64_t nSamples = bews->maxNumNNsamples(); if (nSamples < 1) nSamples = 1;
 	int32_t nFeaturesPerSample = -1 ; //
 	std::unique_ptr<int16_t[]> samples_signature ; 
 	std::unique_ptr<float[]> samples_values ;
@@ -195,11 +213,11 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		fclose(fp) ;
 	}
 
-std::string original = sFNsamples.c_str();
-size_t pos = original.find('-');
-std::string numbers = original.substr(pos + 1, original.size() - pos - 5);
-sFNnn = "nn-" + numbers + ".jit";
-sFNsignalling = "ready-" + numbers;
+// sFNnn = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\nn-202-cpu.jit";
+// sFNnn = "C:\\UCI\\BESampling\\nn-52;63.jit";
+// sFNnn = "C:\\UCI\\BESampling\\nn-57;66;75.jit";
+//sFNnn = "C:\\UCI\\BESampling\\nn-25;36;47.jit";
+// sFNsignalling = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\ready-202.jit";
 
 	// construct command line string
 	sprintf(buf, "python3 /home/cohenn1/SDBE/Super_Buckets/ARP/NN/NN_Train.py --samples \"%s\" --nn_path \"%s\" --done_path \"%s\"", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
@@ -238,8 +256,3 @@ sFNsignalling = "ready-" + numbers;
 
     return 0 ;
 }
-
-
-
-
-
