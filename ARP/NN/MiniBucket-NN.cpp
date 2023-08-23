@@ -213,11 +213,11 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		fclose(fp) ;
 	}
 
-sFNnn = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\nn-202-cpu.jit";
-sFNnn = "C:\\UCI\\BESampling\\nn-52;63.jit";
-sFNnn = "C:\\UCI\\BESampling\\nn-57;66;75.jit";
+// sFNnn = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\nn-202-cpu.jit";
+// sFNnn = "C:\\UCI\\BESampling\\nn-52;63.jit";
+// sFNnn = "C:\\UCI\\BESampling\\nn-57;66;75.jit";
 //sFNnn = "C:\\UCI\\BESampling\\nn-25;36;47.jit";
-sFNsignalling = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\ready-202.jit";
+// sFNsignalling = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\ready-202.jit";
 
 	// construct command line string
 	sprintf(buf, "python3 /home/cohenn1/SDBE/Super_Buckets/ARP/NN/NN_Train.py --samples \"%s\" --nn_path \"%s\" --done_path \"%s\"", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
@@ -256,8 +256,3 @@ sFNsignalling = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\read
 
     return 0 ;
 }
-
-
-
-
-
