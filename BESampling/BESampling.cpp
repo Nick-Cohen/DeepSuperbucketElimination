@@ -128,9 +128,11 @@ std::cout << "input = " << ip << "\n" ;
 bool isT = ip.isTensor() ;
 		// set [9] to '1'
 		// ...
-
-		at::Tensor output = model.forward(inputs).toTensor();
-		std::cout << "value is : " << output.slice(/*dim=*/1, /*start=*/0, /*end=*/5) << '\n';
+		{
+			torch::NoGradGuard no_grad; // Saves work by stopping torch from computing the gradient for backprop
+			at::Tensor output = model.forward(inputs).toTensor();
+			std::cout << "value is : " << output.slice(/*dim=*/1, /*start=*/0, /*end=*/5) << '\n';
+		}
 
 		return 0;
 	}

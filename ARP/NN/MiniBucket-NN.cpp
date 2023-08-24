@@ -226,7 +226,6 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	// launch python training script
 	printf("\nWILL RUN COMMAND LINE : \n   ");
 	printf(buf);
-	printf("\nabc");
 	std::system("pwd");
 	std::system(buf);
 
@@ -237,6 +236,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		printf("\nOK : found file %s", sFNnn.c_str());
 		try {
 			fNN->_model = torch::jit::load(sFNnn.c_str());
+			fNN->_model.eval(); // Set the model to evaluation mode
 			}
 		catch (...) {
 			printf("\nEXCEPTION : %s", sFNnn.c_str());
