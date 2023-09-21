@@ -14,6 +14,7 @@ import torch as t
 import torch.nn.functional as F
 import torch.nn as nn
 import xml.etree.ElementTree as ET
+import time
 from typing import List, Dict, Any, Tuple, IO
 import argparse
 
@@ -114,6 +115,7 @@ class NN_Data:
         # transforms (num_samples, num_vars) tensor to (num_samples, sum(domain_sizes)) one hot encoding
 
         num_samples, num_vars = signatures.shape
+        print(num_vars, " input variables.")
 
         if lower_dim: # send n domain variables to n-1 vector
             one_hot_encoded_samples = t.cat([F.one_hot(signatures[:, i], num_classes=self.domain_sizes[i])[:, 1:] for i in range(num_vars)], dim=-1)
@@ -138,31 +140,44 @@ class Net(nn.Module):
         self.device = nn_data.device
         self.values = nn_data.values.float().to(self.device)
         input_size, hidden_size = len(nn_data.input_vectors[0]), len(nn_data.input_vectors[0])*2
+        hidden_size = 100 # Debug
+        # print('Hidden size is ', hidden_size)
         output_size = 1
         self.fc1 = nn.Linear(input_size, hidden_size).to(self.device)
+        # self.bn1 = nn.BatchNorm1d(hidden_size).to(self.device)  # Batch Norm layer
         self.fc2 = nn.Linear(hidden_size, hidden_size).to(self.device)
+        # self.bn2 = nn.BatchNorm1d(hidden_size).to(self.device)  # Batch Norm layer
         self.fc3 = nn.Linear(hidden_size, output_size).to(self.device)
-        self.relu = nn.ReLU().to(self.device)
-
-        # self.loss_fn = nn.MSELoss()
-        self.loss_fn = nn.L1Loss()
+        
+        self.activation_function = nn.Softplus().to(self.device)
+        # self.activation_function = nn.ReLU().to(self.device)
+ 
+        self.loss_fn = nn.MSELoss()
+        # self.loss_fn = nn.L1Loss()
         self.optimizer = t.optim.Adam(self.parameters())
 
     def forward(self, x):
         out = self.fc1(x)
-        out = self.relu(out)
+        # out = self.bn1(out)
+        out = self.activation_function(out)
         out = self.fc2(out)
-        out = self.relu(out)
+        # out = self.bn2(out)
+        out = self.activation_function(out)
         out = self.fc3(out)
         return out
     
-    def train_model(self, batch_size=100):
+    def train_model(self, batch_size=256):
+        if self.num_samples < 256:
+            batch_size = self.num_samples // 10
+        t = time.time()
         epochs = self.epochs
-        X=self.nn_data.input_vectors#.float()
+        X=self.nn_data.input_vectors
         assert(X.device.type==self.device) ############################################################
-        num_batches = int(self.num_samples / batch_size)
-        print(self.num_samples, batch_size, num_batches)
+        num_batches = int(self.num_samples // batch_size)
+        # print(self.num_samples, batch_size, num_batches)
 
+        previous_loss = 10e10
+        early_stopping_counter = 0
         for epoch in range(epochs):
             for i in range(num_batches):
                 # Get mini-batch
@@ -174,8 +189,8 @@ class Net(nn.Module):
 
 
                 # Convert predictions and values from log space to original scale minus max value
-                pred_values_exp_adjusted = t.exp(pred_values - self.max_value * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
-                values_exp_adjusted = t.exp(values_batch.view(-1, 1) - self.max_value * t.log(t.tensor(10)))
+                # pred_values_exp_adjusted = t.exp(pred_values - self.max_value * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
+                # values_exp_adjusted = t.exp(values_batch.view(-1, 1) - self.max_value * t.log(t.tensor(10)))
                 
                 # # Convert predictions and values from log space to original scale
                 # pred_values_exp = t.exp(pred_values * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
@@ -183,6 +198,15 @@ class Net(nn.Module):
 
                 # Compute loss
                 loss = self.loss_fn(pred_values, values_batch.view(-1, 1))
+                
+                # # Custom loss that is weighted by true value
+                # mse_loss = nn.functional.mse_loss(pred_values, values_batch.view(-1, 1), reduction='none')
+                # custom_loss = mse_loss * values_batch.view(-1, 1)
+                # loss = custom_loss.mean()
+
+                
+                
+                
                 # print(pred_values_exp_adjusted)
                 # print(loss)
                 # stop
@@ -210,8 +234,20 @@ class Net(nn.Module):
                 # Update weights
                 self.optimizer.step()
 
+            
             if (epoch+1) % 10 == 0:
+                # Early stopping
+                if (previous_loss - loss.item()) / loss.item() < 0.01:
+                # if False:
+                    early_stopping_counter += 1
+                    if early_stopping_counter >= 10:
+                        print("Early stopping triggered.")
+                        print("Train time is ", time.time() - t)
+                        return # if loss is less than a 1% improvement
+                previous_loss = loss
+                # Print info
                 print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, loss.item()))
+        print("Train time is ", time.time() - t)
 
     def prediction_error(self, input_vector, value):
         self.eval()
@@ -228,7 +264,37 @@ class Net(nn.Module):
         scripted_model = t.jit.script(self)
         scripted_model.save(file_path)
 
+class NetUntransformed(Net):
+    
+    def __init__(self, net: Net):
+        super(NetUntransformed, self).__init__(nn_data=net.nn_data)
+        self.net_untransformed = net
+        self.nn_data = net.nn_data
+        self.mean_transformation_constant = self.nn_data.mean_transformation_constant
+        self.max_value = self.nn_data.max_value
+    
+    # def reverse_transform(self, tensor):
+    #     return self.net_untransformed.nn_data.reverse_transform()
+    def reverse_transform(self, tensor):
+        
+        output = tensor * self.mean_transformation_constant
+        output = t.log10(tensor)
+        output = output + self.max_value
+        output[t.isnan(output)] = 0
+        return output
+        
 
+    def forward(self, x):
+        out = self.net_untransformed(x)
+        out = self.reverse_transform(out)
+        return out
+    
+
+    def save_model(self, file_path=None):
+        if file_path is None:
+            file_path = "nn-weights" + self.nn_data.file_name[7:-3] + "pt"
+        scripted_model = t.jit.script(self)
+        scripted_model.save(file_path)
 
     
 
@@ -236,9 +302,11 @@ class Net(nn.Module):
 #%%
 
 def main(file_name, nn_save_path):
-    data = NN_Data(file_name)
+    data = NN_Data(file_name, transform_data=False, device='cpu')
     nn = Net(data, epochs=1000)
     nn.train_model()
+    if data.transform_data:
+        nn = NetUntransformed(nn)
     if nn_save_path is not None:
         nn.save_model(nn_save_path)
     else:

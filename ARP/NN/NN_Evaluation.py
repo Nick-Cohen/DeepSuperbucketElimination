@@ -13,7 +13,8 @@ def evaluate_error_as_function_of_table_value_size(nn: Net, data_test: NN_Data, 
     Y = []
     for i in range(len(data_test.input_vectors)):
         x = t.exp(data_test.values[i])
-        y = nn.prediction_error(data_test.input_vectors[i],data_test.values[i])
+        y = abs(nn(data_test.input_vectors[i]) - data_test.values[i])
+        # y = nn.prediction_error(data_test.input_vectors[i],data_test.values[i])
         if log_scale:
             X.append(t.log(x))
             Y.append(t.log(y))
@@ -100,12 +101,20 @@ def test_load_from_jit(savedNN, data: NN_Data):
 
 
 #%%
-samples_path = '/home/cohenn1/SDBE/Super_Buckets/BESampling/samples-25;36;47.xml'
-data_train = NN_Data(samples_path, device='cpu', transform_data=True)
-data_test = NN_Data(samples_path, device='cpu', transform_data=True)
-nn = Net(data_train, epochs = 1000)
-nn.train_model(batch_size=1000)
-nn.save_model('test25;36;47.jit')
+samples_path = '/home/cohenn1/SDBE/samples-0;7;26;43;47;60;62;81;102.xml'
+data_train = NN_Data(samples_path, device='cuda', transform_data=False)
+# data_test = NN_Data(samples_path, device='cpu', transform_data=False)
+model = Net(data_train,epochs=50)
+with t.profiler.profile() as prof:
+    model.train_model(batch_size=200)
+print(prof.key_averages().table(sort_by="self_cpu_time_total"))
+# savedNN = '/home/cohenn1/SDBE/nn-30;49;106.jit'
+# model = t.jit.load(savedNN)
+# evaluate_error_as_function_of_table_value_size(model, data_train)-------------------------
+
+# nn = Net(data_train, epochs = 1000)
+# nn.train_model(batch_size=1000)
+# nn.save_model('test25;36;47.jit')
 # %%
 jit_path = '/home/cohenn1/SDBE/Super_Buckets/ARP/NN/test25;36;47.jit'
 test_load_from_jit(jit_path, data_train)

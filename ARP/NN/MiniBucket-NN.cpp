@@ -226,6 +226,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	// launch python training script
 	printf("\nWILL RUN COMMAND LINE : \n   ");
 	printf(buf);
+	std::cout.flush();
 	std::system("pwd");
 	std::system(buf);
 
