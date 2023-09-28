@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import os
 import NN_Train
-print(NN_Train.__file__)
+import time
 import importlib
 importlib.reload(NN_Train)
 from NN_Train import Net, NN_Data
@@ -101,13 +101,21 @@ def test_load_from_jit(savedNN, data: NN_Data):
 
 
 #%%
-samples_path = '/home/cohenn1/SDBE/samples-0;7;26;43;47;60;62;81;102.xml'
-data_train = NN_Data(samples_path, device='cuda', transform_data=False)
+samples_path = '/home/cohenn1/SDBE/test_samples/samples-47;59.xml'
+data = NN_Data(samples_path, device='cuda', transform_data=False)
 # data_test = NN_Data(samples_path, device='cpu', transform_data=False)
-model = Net(data_train,epochs=50)
-with t.profiler.profile() as prof:
-    model.train_model(batch_size=200)
-print(prof.key_averages().table(sort_by="self_cpu_time_total"))
+X,Y = data.input_vectors, data.values
+# model = NN_Train.DummyNet(X,Y,'cuda')
+model = Net(data)
+t = time.time()
+model.train_model(X, Y)
+print('time is ', time.time() - t)
+# with t.no_grad:
+#     preds = model(data_train.input_vectors)
+# with t.profiler.profile() as prof:
+#     model = Net(data_train)
+#     model.train_model(batch_size=200)
+# print(prof.key_averages().table(sort_by="self_cpu_time_total"))
 # savedNN = '/home/cohenn1/SDBE/nn-30;49;106.jit'
 # model = t.jit.load(savedNN)
 # evaluate_error_as_function_of_table_value_size(model, data_train)-------------------------
@@ -116,8 +124,8 @@ print(prof.key_averages().table(sort_by="self_cpu_time_total"))
 # nn.train_model(batch_size=1000)
 # nn.save_model('test25;36;47.jit')
 # %%
-jit_path = '/home/cohenn1/SDBE/Super_Buckets/ARP/NN/test25;36;47.jit'
-test_load_from_jit(jit_path, data_train)
+# jit_path = '/home/cohenn1/SDBE/Super_Buckets/ARP/NN/test25;36;47.jit'
+# test_load_from_jit(jit_path, data_train)
 #%%
 
 

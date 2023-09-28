@@ -13,10 +13,12 @@
 import torch as t
 import torch.nn.functional as F
 import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
 import xml.etree.ElementTree as ET
 import time
 from typing import List, Dict, Any, Tuple, IO
 import argparse
+import math
 
 class NN_Data:
 
@@ -35,6 +37,7 @@ class NN_Data:
         self.domain_sizes: t.IntTensor
         self.device = device
         self.transform_data = transform_data
+        self.max_value = None
         if file_name is not None:
             try:
                  self.parse_samples()
@@ -100,7 +103,24 @@ class NN_Data:
         # Get 'outputfnvariabledomainsizes' attribute and convert it to a list of integers
         domain_sizes = [int(x) for x in root.get('outputfnvariabledomainsizes').split(';')]
         self.domain_sizes = t.IntTensor(domain_sizes).to(self.device)
-        self.input_vectors = (self.one_hot_encode(self.signatures).float()).to(self.device)
+        # self.input_vectors = (self.one_hot_encode(self.signatures).float()).to(self.device)
+        
+        # Split into test and validation
+        total_samples = self.num_samples
+        split_point = math.ceil(0.8 * total_samples)  # 80% for training
+
+        # Splitting the data into training and test sets
+        self.signatures = signatures_tensor[:split_point]
+        self.values = values_tensor[:split_point]
+        self.input_vectors = self.one_hot_encode(self.signatures).float().to(self.device)[:split_point]
+        
+        self.signatures_test = signatures_tensor[split_point:]
+        self.values_test = values_tensor[split_point:]
+        self.input_vectors_test = self.one_hot_encode(self.signatures_test).float().to(self.device)
+        
+        # Update the number of samples for both training and test sets
+        self.num_samples = split_point
+        self.num_samples_test = total_samples - split_point
         
     def reverse_transform(self, tensor):
         output = tensor * self.mean_transformation_constant
@@ -130,7 +150,7 @@ class NN_Data:
 
 # %%
 class Net(nn.Module):
-    # def __init__(self, input_size, hidden_size, output_size):
+
     def __init__(self, nn_data: NN_Data, epochs = 1000):
         super(Net, self).__init__()
         self.nn_data = nn_data
@@ -138,6 +158,7 @@ class Net(nn.Module):
         self.num_samples = self.nn_data.num_samples
         self.epochs = epochs
         self.device = nn_data.device
+        # self.device = 'cuda'
         self.values = nn_data.values.float().to(self.device)
         input_size, hidden_size = len(nn_data.input_vectors[0]), len(nn_data.input_vectors[0])*2
         hidden_size = 100 # Debug
@@ -154,7 +175,10 @@ class Net(nn.Module):
  
         self.loss_fn = nn.MSELoss()
         # self.loss_fn = nn.L1Loss()
-        self.optimizer = t.optim.Adam(self.parameters())
+        
+        self.optimizer = t.optim.SGD(self.parameters(), lr=0.01)
+
+        # self.optimizer = t.optim.Adam(self.parameters())
 
     def forward(self, x):
         out = self.fc1(x)
@@ -166,23 +190,54 @@ class Net(nn.Module):
         out = self.fc3(out)
         return out
     
-    def train_model(self, batch_size=256):
+    def validate_model(self, batch_size=256):
+        self.eval()  # set the model to evaluation mode
+        with t.no_grad():
+            test_X = self.nn_data.input_vectors_test
+            test_Y = self.nn_data.values_test.float().to(self.device)
+            num_test_samples = self.nn_data.num_samples_test
+            num_test_batches = int(num_test_samples // batch_size)
+
+            total_val_loss = 0
+            for i in range(num_test_batches):
+                X_batch = test_X[i * batch_size: (i + 1) * batch_size]
+                Y_batch = test_Y[i * batch_size: (i + 1) * batch_size]
+                
+                pred = self(X_batch)
+                val_loss = self.loss_fn(pred, Y_batch.view(-1, 1))
+                total_val_loss += val_loss.item()
+
+            avg_val_loss = total_val_loss / num_test_batches
+            print('Validation Loss (batch size {}): {:.4f}'.format(batch_size, avg_val_loss))
+
+
+    
+    def train_model(self, X, Y, batch_size=2048):
         if self.num_samples < 256:
             batch_size = self.num_samples // 10
         t = time.time()
         epochs = self.epochs
-        X=self.nn_data.input_vectors
+        # X=self.nn_data.input_vectors
         assert(X.device.type==self.device) ############################################################
         num_batches = int(self.num_samples // batch_size)
         # print(self.num_samples, batch_size, num_batches)
-
+        # for param in self.parameters():
+        #     print(param.device, end=' ')
+        # print(self.values.device)
         previous_loss = 10e10
         early_stopping_counter = 0
+        batches = []
+        # # Get mini-batch
+        for i in range(num_batches):
+            X_batch = X[i*batch_size : (i+1)*batch_size]
+            values_batch = Y[i*batch_size : (i+1)*batch_size]
+            batches.append((X_batch,values_batch))
         for epoch in range(epochs):
             for i in range(num_batches):
                 # Get mini-batch
-                X_batch = X[i*batch_size : (i+1)*batch_size]
-                values_batch = self.values[i*batch_size : (i+1)*batch_size]
+                # X_batch = X[i*batch_size : (i+1)*batch_size]
+                # values_batch = Y[i*batch_size : (i+1)*batch_size]
+                X_batch, values_batch = batches[i]
 
                 # Predict
                 pred_values = self(X_batch)
@@ -248,6 +303,7 @@ class Net(nn.Module):
                 # Print info
                 print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, loss.item()))
         print("Train time is ", time.time() - t)
+        self.validate_model(batch_size)
 
     def prediction_error(self, input_vector, value):
         self.eval()
@@ -297,6 +353,83 @@ class NetUntransformed(Net):
         scripted_model.save(file_path)
 
     
+class DummyNet(nn.Module):
+    
+    def __init__(self, input_vectors, values, device):
+        super(DummyNet, self).__init__()
+        self.input_vectors = input_vectors
+        self.values = values
+        self.device = device
+        input_size = len(input_vectors[0])
+        hidden_size = 100
+        output_size = 1
+        self.fc1 = nn.Linear(input_size, hidden_size).to(self.device)
+        self.fc2 = nn.Linear(hidden_size, hidden_size).to(self.device)
+        self.fc3 = nn.Linear(hidden_size, output_size).to(self.device)
+        self.loss_fn = nn.MSELoss()
+        
+    def forward(self, x):
+        x = self.fc1(x)
+        x = t.relu(x)
+        x = self.fc2(x)
+        x = t.relu(x)
+        x = self.fc3(x)
+        return x
+    
+    # def train_model(self, X,Y, epochs=100, lr=0.001):
+    #     input_vectors = X
+    #     values = Y
+            
+    #     criterion = nn.MSELoss()
+    #     optimizer = t.optim.Adam(self.parameters(), lr=lr)
+            
+    #     for epoch in range(epochs):
+    #         self.train()
+    #         optimizer.zero_grad()
+                
+    #         outputs = self(input_vectors)
+    #         loss = criterion(outputs, values)
+                
+    #         loss.backward()
+    #         optimizer.step()
+    #         print(f'Epoch {epoch+1}/{epochs}, Loss: {loss.item()}')
+
+    
+    def train_model(self, input_vectors, values, epochs=100, lr=0.001, batch_size=256):
+        # Convert to PyTorch tensors and move to the specified device
+        input_vectors = t.tensor(input_vectors, dtype=t.float32).to(self.device)
+        values = t.tensor(values, dtype=t.float32).to(self.device)
+        
+        # Create a DataLoader
+        dataset = TensorDataset(input_vectors, values)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        
+        # Initialize the optimizer
+        optimizer = t.optim.Adam(self.parameters(), lr=lr)
+
+        my_batches = list(dataloader)
+        for epoch in range(epochs):
+            self.train()
+            
+            #a,b = next(iter(dataloader))
+            #print(a.device)
+            for batch_input_vectors, batch_values in my_batches: #[(a,b)]: #dataloader:
+                # Zero the parameter gradients
+                optimizer.zero_grad()
+                
+                # Forward pass
+                outputs = self(batch_input_vectors)
+                
+                # Compute the loss
+                loss = self.loss_fn(outputs, batch_values)
+                
+                # Backward pass and optimization
+                loss.backward()
+                optimizer.step()
+            
+            print(f'Epoch: {epoch+1}/{epochs}, Last batch loss: {loss.item()}')
+
+
 
 
 #%%
@@ -304,7 +437,7 @@ class NetUntransformed(Net):
 def main(file_name, nn_save_path):
     data = NN_Data(file_name, transform_data=False, device='cpu')
     nn = Net(data, epochs=1000)
-    nn.train_model()
+    nn.train_model(data.input_vectors, data.values)
     if data.transform_data:
         nn = NetUntransformed(nn)
     if nn_save_path is not None:
