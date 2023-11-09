@@ -19,6 +19,7 @@ import time
 from typing import List, Dict, Any, Tuple, IO
 import argparse
 import math
+import sys
 
 class NN_Data:
 
@@ -70,7 +71,8 @@ class NN_Data:
         # Replace -inf with a large negative number
         values_tensor[values_tensor == float('-inf')] = -1e10
         
-        self.max_value = float(t.exp(t.log(t.tensor(10)) * max(values_tensor))) # take max value exponentiated out of log space
+        self.max_value = float(max(values_tensor)) # take max value exponentiated out of log space
+        # self.max_value = float(t.exp(t.log(t.tensor(10)) * max(values_tensor))) # take max value exponentiated out of log space
 
         self.signatures, self.values = signatures_tensor, values_tensor
         self.values[self.values == float('-inf')] = -1e10
@@ -141,7 +143,6 @@ class NN_Data:
             one_hot_encoded_samples = t.cat([F.one_hot(signatures[:, i], num_classes=self.domain_sizes[i])[:, 1:] for i in range(num_vars)], dim=-1)
         else:
             one_hot_encoded_samples = t.cat([F.one_hot(signatures[:, i], num_classes=self.domain_sizes[i]) for i in range(num_vars)], dim=-1)
-
         return one_hot_encoded_samples
     
     
@@ -151,79 +152,89 @@ class NN_Data:
 # %%
 class Net(nn.Module):
 
-    def __init__(self, nn_data: NN_Data, epochs = 1000):
+    def __init__(self, nn_data: NN_Data, epochs = 1000, device = None):
         super(Net, self).__init__()
         self.nn_data = nn_data
         self.max_value = nn_data.max_value
         self.num_samples = self.nn_data.num_samples
         self.epochs = epochs
-        self.device = nn_data.device
-        # self.device = 'cuda'
+        if device is None:
+            self.device = nn_data.device
+        else:
+            self.device = device
         self.values = nn_data.values.float().to(self.device)
         input_size, hidden_size = len(nn_data.input_vectors[0]), len(nn_data.input_vectors[0])*2
-        hidden_size = 100 # Debug
-        # print('Hidden size is ', hidden_size)
+        hidden_size = 100
         output_size = 1
         self.fc1 = nn.Linear(input_size, hidden_size).to(self.device)
-        # self.bn1 = nn.BatchNorm1d(hidden_size).to(self.device)  # Batch Norm layer
         self.fc2 = nn.Linear(hidden_size, hidden_size).to(self.device)
-        # self.bn2 = nn.BatchNorm1d(hidden_size).to(self.device)  # Batch Norm layer
         self.fc3 = nn.Linear(hidden_size, output_size).to(self.device)
         
         self.activation_function = nn.Softplus().to(self.device)
-        # self.activation_function = nn.ReLU().to(self.device)
  
-        self.loss_fn = nn.MSELoss()
-        # self.loss_fn = nn.L1Loss()
+        # self.loss_fn = nn.MSELoss()
+        # self.loss_fn = self.nbe_loss
+        self.loss_fn = self.klish_loss
         
-        self.optimizer = t.optim.SGD(self.parameters(), lr=0.01)
-
-        # self.optimizer = t.optim.Adam(self.parameters())
+        # self.optimizer = t.optim.SGD(self.parameters(), lr=0.01)
+        self.optimizer = t.optim.Adam(self.parameters())
+        
+        # Inialize validation loss twice previous and once previous, used for early stopping
+        self.val_loss2 = sys.float_info.max
+        self.val_loss1 = self.val_loss2/2
 
     def forward(self, x):
         out = self.fc1(x)
-        # out = self.bn1(out)
         out = self.activation_function(out)
         out = self.fc2(out)
-        # out = self.bn2(out)
         out = self.activation_function(out)
         out = self.fc3(out)
         return out
     
-    def validate_model(self, batch_size=256):
+    def validate_model(self, print_loss=True):
         self.eval()  # set the model to evaluation mode
         with t.no_grad():
             test_X = self.nn_data.input_vectors_test
             test_Y = self.nn_data.values_test.float().to(self.device)
             num_test_samples = self.nn_data.num_samples_test
-            num_test_batches = int(num_test_samples // batch_size)
 
             total_val_loss = 0
-            for i in range(num_test_batches):
-                X_batch = test_X[i * batch_size: (i + 1) * batch_size]
-                Y_batch = test_Y[i * batch_size: (i + 1) * batch_size]
-                
-                pred = self(X_batch)
-                val_loss = self.loss_fn(pred, Y_batch.view(-1, 1))
-                total_val_loss += val_loss.item()
+            pred = self(test_X)
+            val_loss = self.loss_fn(pred, test_Y.view(-1, 1))
+            total_val_loss += val_loss.item()
+            avg_val_loss = total_val_loss / num_test_samples
+            if print_loss:
+                print('Validation Loss: {:.12f}'.format(avg_val_loss))
+            return avg_val_loss
 
-            avg_val_loss = total_val_loss / num_test_batches
-            print('Validation Loss (batch size {}): {:.4f}'.format(batch_size, avg_val_loss))
-
-
+    def klish_loss(self, y_hat, y):
+        # print(t.sum(t.log10(t.mean((y_hat - self.max_value)**10))  + self.max_value))
+        # exit(1)
+        # return t.sum((y-y_hat)**2)
+        return t.sum((y-y_hat)**2) + t.sum(t.log10(t.mean((y_hat - self.max_value)**10))  + self.max_value)
+    
+    def nbe_loss(self, y_hat, y):
+        # print(t.pow(1.5, y_hat - self.nn_data.max_value))
+        # return t.sum(t.pow((y - y_hat),2))
+        # print(t.sum(t.abs(y_hat/self.nn_data.max_value) * t.pow((y - y_hat),2)))
+        # print(t.pow(1.1, t.max(y,y_hat) - self.nn_data.max_value))
+        # exit(1)
+        return t.sum(t.pow(1.1, t.max(y,y_hat) - self.nn_data.max_value) * t.pow((y - y_hat),2))
+        return t.sum(t.pow(10, y_hat - self.nn_data.max_value) * t.pow((y - y_hat),2))
+    
+    # adding term to try to punish overestimation bias
+    def custom_loss2(self, y_hat, y):
+        base = 2.0
+        return t.sum((y_hat - y)**2 * base ** (y_hat - y))
+        # return t.sum((y_hat - y)**2 * base ** (t.max(y_hat,y) - y))
     
     def train_model(self, X, Y, batch_size=2048):
         if self.num_samples < 256:
             batch_size = self.num_samples // 10
         t = time.time()
         epochs = self.epochs
-        # X=self.nn_data.input_vectors
-        assert(X.device.type==self.device) ############################################################
         num_batches = int(self.num_samples // batch_size)
-        # print(self.num_samples, batch_size, num_batches)
-        # for param in self.parameters():
-        #     print(param.device, end=' ')
-        # print(self.values.device)
+        print(epochs,num_batches)
         previous_loss = 10e10
         early_stopping_counter = 0
         batches = []
@@ -234,54 +245,14 @@ class Net(nn.Module):
             batches.append((X_batch,values_batch))
         for epoch in range(epochs):
             for i in range(num_batches):
-                # Get mini-batch
-                # X_batch = X[i*batch_size : (i+1)*batch_size]
-                # values_batch = Y[i*batch_size : (i+1)*batch_size]
                 X_batch, values_batch = batches[i]
 
                 # Predict
                 pred_values = self(X_batch)
 
-
-                # Convert predictions and values from log space to original scale minus max value
-                # pred_values_exp_adjusted = t.exp(pred_values - self.max_value * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
-                # values_exp_adjusted = t.exp(values_batch.view(-1, 1) - self.max_value * t.log(t.tensor(10)))
-                
-                # # Convert predictions and values from log space to original scale
-                # pred_values_exp = t.exp(pred_values * t.log(t.tensor(10))) # I might need to change the order I do these exponentiations for numerical precision reasons
-                # values_exp = t.exp(values_batch.view(-1, 1) * t.log(t.tensor(10)))
-
                 # Compute loss
                 loss = self.loss_fn(pred_values, values_batch.view(-1, 1))
                 
-                # # Custom loss that is weighted by true value
-                # mse_loss = nn.functional.mse_loss(pred_values, values_batch.view(-1, 1), reduction='none')
-                # custom_loss = mse_loss * values_batch.view(-1, 1)
-                # loss = custom_loss.mean()
-
-                
-                
-                
-                # print(pred_values_exp_adjusted)
-                # print(loss)
-                # stop
-                
-                # Absolute error
-                # loss = self.loss_fn(pred_values_exp, values_exp)
-                
-                # Absolute error times 1/max value in non log space
-                # loss = t.e**(-self.max_value) * self.loss_fn(pred_values_exp, values_exp) # Added 1/max_value
-                
-                # print(f'Predicted value is: {pred_values[0].item()}')
-                # print(f'True value is:      {values_batch.view(-1, 1)[0].item()}')
-                # print(f'Exp pred value is:  {pred_values_exp[0].item()}')
-                # print(f'Exp true value is:  {values_exp[0].item()}')
-                # print(f'Loss is:            {loss.item()}')
-                # print(f'Max value is:       {self.max_value}')
-
-                assert(loss.device.type==self.device) #################################
-                
-
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -292,18 +263,25 @@ class Net(nn.Module):
             
             if (epoch+1) % 10 == 0:
                 # Early stopping
-                if (previous_loss - loss.item()) / loss.item() < 0.01:
-                # if False:
-                    early_stopping_counter += 1
-                    if early_stopping_counter >= 10:
-                        print("Early stopping triggered.")
-                        print("Train time is ", time.time() - t)
-                        return # if loss is less than a 1% improvement
-                previous_loss = loss
-                # Print info
+                if self.early_stopping():
+                    print("Early stopping triggered.")
+                    print("Train time is ", time.time() - t)
+                    self.validate_model(batch_size)
+                    return
+
                 print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, loss.item()))
         print("Train time is ", time.time() - t)
         self.validate_model(batch_size)
+        
+    def early_stopping(self):
+        current_validation_loss = self.validate_model(print_loss=False)
+        if self.val_loss2 < self.val_loss1 and self.val_loss1 < current_validation_loss:
+            return True
+        else:
+            self.val_loss2 = self.val_loss1
+            self.val_loss1 = current_validation_loss
+            return False
+            
 
     def prediction_error(self, input_vector, value):
         self.eval()
@@ -349,6 +327,7 @@ class NetUntransformed(Net):
     def save_model(self, file_path=None):
         if file_path is None:
             file_path = "nn-weights" + self.nn_data.file_name[7:-3] + "pt"
+        # self.cpu()
         scripted_model = t.jit.script(self)
         scripted_model.save(file_path)
 
@@ -408,6 +387,7 @@ class DummyNet(nn.Module):
         optimizer = t.optim.Adam(self.parameters(), lr=lr)
 
         my_batches = list(dataloader)
+        print(my_batches)
         for epoch in range(epochs):
             self.train()
             
@@ -435,15 +415,29 @@ class DummyNet(nn.Module):
 #%%
 
 def main(file_name, nn_save_path):
-    data = NN_Data(file_name, transform_data=False, device='cpu')
-    nn = Net(data, epochs=1000)
-    nn.train_model(data.input_vectors, data.values)
+    data = NN_Data(file_name, transform_data=False, device='cuda')
+    
+    gpu = True
+    if gpu:
+        print('Using GPU')
+        nn = Net(data, epochs=1000000)
+        nn.train_model(data.input_vectors, data.values)
+        nn_cpu = Net(data, device='cpu')
+        
+        # copy weights to cpu model
+        model_weights = nn.state_dict()
+        cpu_model_weights = {k: v.cpu() for k, v in model_weights.items()}
+        nn_cpu.load_state_dict(cpu_model_weights)
+    else:
+        nn_cpu = Net(data, epochs=1000000)
+        nn_cpu.train_model(data.input_vectors, data.values)
+    
     if data.transform_data:
         nn = NetUntransformed(nn)
     if nn_save_path is not None:
-        nn.save_model(nn_save_path)
+        nn_cpu.save_model(nn_save_path)
     else:
-        nn.save_model()
+        nn_cpu.save_model()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a neural network.')

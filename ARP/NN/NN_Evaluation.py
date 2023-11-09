@@ -109,6 +109,7 @@ X,Y = data.input_vectors, data.values
 model = Net(data)
 t = time.time()
 model.train_model(X, Y)
+model.save_model("test_gpu_load.jit")
 print('time is ', time.time() - t)
 # with t.no_grad:
 #     preds = model(data_train.input_vectors)
@@ -124,8 +125,8 @@ print('time is ', time.time() - t)
 # nn.train_model(batch_size=1000)
 # nn.save_model('test25;36;47.jit')
 # %%
-# jit_path = '/home/cohenn1/SDBE/Super_Buckets/ARP/NN/test25;36;47.jit'
-# test_load_from_jit(jit_path, data_train)
+jit_path = 'test_gpu_load.jit'
+test_load_from_jit(jit_path, data)
 #%%
 
 
