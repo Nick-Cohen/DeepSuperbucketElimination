@@ -703,6 +703,13 @@ public :
 
 public :
 
+	// 2023-11-14 : we assume we have a table ... save into given file ...
+	virtual int32_t SaveToFile(std::string & FileName) ;
+
+	virtual int32_t GenerateSamplesXmlFilename(
+		const char* sSuffix, std::string& fnSamples, std::string& fnNetwork, std::string& fnFNsignalling, std::string& sPrefix, std::string& sPostFix,
+		int32_t nSamples, double samples_min_value, double samples_max_value, double samples_sum) ;
+
 	virtual void Initialize(Workspace *WS, ARP *Problem, int32_t IDX)
 	{
 		// note : _OriginatingBucket and _OriginatingMiniBucket should be set and can be used here...

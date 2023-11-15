@@ -8,8 +8,137 @@
 #include "Problem.hxx"
 #include "Function.hxx"
 #include "Bucket.hxx"
+#include "MBEworkspace.hxx"
 
 static MTRand RNG ;
+
+int32_t ARE::Function::GenerateSamplesXmlFilename(
+	const char *sSuffix, std::string & fnSamples, std::string & fnNetwork, std::string& fnFNsignalling, std::string & sPrefix, std::string & sPostFix,
+	int32_t nSamples, double samples_min_value, double samples_max_value, double samples_sum)
+{
+	if (NULL == _Workspace)
+		return ERRORCODE_generic ;
+	ARE::ARP *problem = _Workspace->Problem() ;
+	if (NULL == problem)
+		return ERRORCODE_generic ;
+
+	std::unique_ptr<char[]> sBUF(new char[1024]) ;
+	if (nullptr == sBUF) 
+		return 1 ;
+	char *buf = sBUF.get() ;
+	std::string s ;
+
+	bool data_is_log_space = problem->FunctionsAreConvertedToLogScale() ;
+
+	fnSamples = "samples-"; fnNetwork = "nn-"; fnFNsignalling = "nnready-";
+	if (nullptr != sSuffix) {
+		fnSamples += sSuffix; fnNetwork += sSuffix; fnFNsignalling += sSuffix; }
+	fnSamples += ".xml" ;
+	fnNetwork += ".jit" ;
+	fnFNsignalling += ".txt";
+
+	// generate scope and domain size lists
+	s = " outputfnscope=\"" ;
+	for (int32_t i = 0 ; i < _nArgs ; ++i) {
+		if (i > 0) s += ';' ;
+		sprintf(buf, "%d", (int) _Arguments[i]) ;
+		s += buf ;
+		}
+	s += "\" outputfnvariabledomainsizes=\"" ;
+	for (int32_t i = 0 ; i < _nArgs ; ++i) {
+		if (i > 0) s += ';' ;
+		sprintf(buf, "%d", (int) problem->K(_Arguments[i])) ;
+		s += buf ;
+		}
+	s += '\"' ;
+	sPrefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" ;
+	int32_t nFeaturesPerSample = _nArgs ;
+	sprintf(buf, "\n<samples n=\"%d\" nFeaturesPerSample=\"%d\"%s datainlogspace=\"%c\"", (int) nSamples, (int) nFeaturesPerSample, s.c_str(), (char) data_is_log_space ? 'Y' : 'N') ;
+	sPrefix += buf ;
+	if (samples_min_value < 1.0e+128) {
+		sprintf(buf, " min=\"%g\"", (double) samples_min_value) ; sPrefix += buf ; }
+	if (samples_max_value < 1.0e+128) {
+		sprintf(buf, " max=\"%g\"", (double) samples_max_value) ; sPrefix += buf ; }
+	if (samples_sum < 1.0e+128) {
+		sprintf(buf, " sum=\"%g\"", (double) samples_sum) ; sPrefix += buf ; }
+	if (fnNetwork.length() > 0) {
+		sPrefix += " fnNetwork=\"" ;
+		sPrefix += fnNetwork ;
+		sPrefix += '\"' ;
+		}
+	sPrefix += '>' ;
+
+	// sPostFix
+	sPostFix = "\n</samples>" ;
+
+	return 0 ;
+}
+
+
+int32_t ARE::Function::SaveToFile(std::string & FileName)
+{
+	int32_t i, j, k ;
+
+	if (NULL == _Workspace)
+		return ERRORCODE_generic ;
+	ARE::ARP *problem = _Workspace->Problem() ;
+	if (NULL == problem)
+		return ERRORCODE_generic ;
+
+	ARE_Function_TableType *data = TableData() ;
+	if (nullptr == data)
+		return 1 ;
+	int64_t tablesize = _TableSize ;
+	int32_t nA = _nArgs ;
+	const int32_t *refFNarguments = _Arguments ;
+
+	std::unique_ptr<char[]> sBUF(new char[1024]) ;
+	if (nullptr == sBUF) 
+		return 1 ;
+	char *buf = sBUF.get() ;
+
+	int32_t vars[MAX_NUM_VARIABLES_PER_BUCKET] ; // this is the list of variables : vars2Keep + vars2Eliminate
+	for (j = 0 ; j < nA ; ++j) 
+		vars[j] = refFNarguments[j] ;
+	std::unique_ptr<int32_t[]> currentValueSet(new int32_t[nA+1]) ; // ask +1 in case nA==0
+	if (nullptr == currentValueSet) 
+		return 1 ;
+	for (i = 0 ; i < nA ; ++i) currentValueSet[i] = 0 ;
+
+	FILE *fp = nullptr ;
+	std::string sFN, sFNnn, sFNsignalling, sPrefix, sPostFix, sSample ;
+	int64_t nSamples = tablesize ;
+	float samples_min_value = 1.0e+129, samples_max_value = 1.0e+129, samples_sum = 1.0e+129 ;
+	GenerateSamplesXmlFilename("-table", sFN, sFNnn, sFNsignalling, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+	fp = fopen(sFN.c_str(), "w") ;
+	if (nullptr == fp)
+		return 1 ;
+	fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;
+
+	for (int64_t KeepIDX = 0 ; KeepIDX < tablesize ; ++KeepIDX) {
+		int64_t idx = ComputeFnTableAdr_wrtSignatureAssignment(currentValueSet.get(), problem->K()) ;
+		ARE_Function_TableType & v = data[idx] ;
+
+		sSample = "\n   <sample signature=\"" ;
+		for (int32_t iSig = 0 ; iSig < nA ; ++iSig) {
+			if (iSig > 0) sSample += ';' ;
+			sprintf(buf, "%d", (int) currentValueSet[iSig]) ; sSample += buf ;
+			}
+		sprintf(buf, "\" value=\"%g\"/>", (double) v) ; sSample += buf ;
+		fwrite(sSample.c_str(), 1, sSample.length(), fp) ;
+
+		// go to next argument value combination
+		ARE::EnumerateNextArgumentsValueCombination(nA, vars, currentValueSet.get(), problem->K()) ;
+		}
+
+	if (nullptr != fp) {
+		fwrite(sPostFix.c_str(), 1, sPostFix.length(), fp) ;
+		fclose(fp) ;
+		}
+
+	return 0 ;
+}
+
 
 int32_t ARE::Function::SetArguments(int32_t N, const int32_t *Arguments, int32_t ExcludeThisVar)
 {
