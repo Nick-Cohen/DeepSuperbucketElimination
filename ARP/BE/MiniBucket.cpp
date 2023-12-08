@@ -969,6 +969,12 @@ goto_next_keep_value_combination :
 		fclose(fp) ;
 		}
 
+	static bool saveToFile = false ;
+	if (saveToFile && nullptr != _OutputFunction) {
+		std::string fn("bucket-output-fn.xml") ;
+		_OutputFunction->SaveToFile(fn) ;
+		}
+
 	return 0 ;
 }
 

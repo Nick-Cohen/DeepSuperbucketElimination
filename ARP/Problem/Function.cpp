@@ -110,6 +110,8 @@ int32_t ARE::Function::SaveToFile(std::string & FileName)
 	int64_t nSamples = tablesize ;
 	float samples_min_value = 1.0e+129, samples_max_value = 1.0e+129, samples_sum = 1.0e+129 ;
 	GenerateSamplesXmlFilename("-table", sFN, sFNnn, sFNsignalling, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
+	if (0 != FileName.length()) 
+		sFN = FileName ;
 	fp = fopen(sFN.c_str(), "w") ;
 	if (nullptr == fp)
 		return 1 ;
