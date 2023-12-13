@@ -231,7 +231,8 @@ public :
 		// IN
 		int32_t varElimOperator, 
 		// IN : if result goes to file...
-		bool ResultToFile, 
+		bool ResultToFile, // not in memory
+		bool SaveTableToFile, // table is memory, save to file
 		// IN : temp, used when doing MomentMatching (product/max) (FU=fMaxMarginal fU=fAvgMaxMarginal) or CostShifting (product/sum)
 		ARE::Function *FU, ARE::Function *fU, 
 		// IN : used when running WMBE

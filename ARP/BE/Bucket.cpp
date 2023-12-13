@@ -1121,7 +1121,7 @@ int32_t BucketElimination::Bucket::ComputeOutputFunctions(bool DoMomentMatching,
 
 			idx = 0 ;
 			for (MiniBucket *mb : _MiniBuckets) {
-				if (0 != mb->ComputeOutputFunction(varElimOperator, false, max_marginals[idx], &fAvgMM, DBL_MAX)) 
+				if (0 != mb->ComputeOutputFunction(varElimOperator, false, false, max_marginals[idx], &fAvgMM, DBL_MAX)) 
 					goto done_MM ;
 				++idx ;
 				}
@@ -1171,7 +1171,7 @@ int32_t BucketElimination::Bucket::ComputeOutputFunctions(bool DoMomentMatching,
 				BucketElimination::MiniBucket *mb = _MiniBuckets[i] ;
 				ARE::Function & fU = fUs[i] ;
 				mb->WMBE_weight() = w ;
-				if (0 != mb->ComputeOutputFunction(varElimOperator, false, &FU, &fU, w)) 
+				if (0 != mb->ComputeOutputFunction(varElimOperator, false, false, &FU, &fU, w)) 
 					goto done_MM ;
 				}
 #else // DO_PROD_SUM_MM
@@ -1194,7 +1194,7 @@ int32_t BucketElimination::Bucket::ComputeOutputFunctions(bool DoMomentMatching,
 			idx = 0 ;
 			for (MiniBucket *mb : _MiniBuckets) {
 				mb->WMBE_weight() = 0 == idx ? w_0 : w ;
-				if (0 != mb->ComputeOutputFunction(varElimOperator, false, NULL, NULL, 0 == idx ? w_0 : w)) 
+				if (0 != mb->ComputeOutputFunction(varElimOperator, false, false, NULL, NULL, 0 == idx ? w_0 : w)) 
 					goto done_MM ;
 				++idx ;
 				}
@@ -1206,7 +1206,8 @@ do_default :
 	if (! mbe_computed) {
 		idx = 0 ;
 		for (MiniBucket *mb : _MiniBuckets) {
-			if (0 != mb->ComputeOutputFunction(varElimOperator, false, NULL, NULL, DBL_MAX)) 
+bool saveToFile = 47 == _V ;
+			if (0 != mb->ComputeOutputFunction(varElimOperator, false, saveToFile, NULL, NULL, DBL_MAX))
 				goto done_MM ;
 			++idx ;
 			// if problem is summation, sum over first mini-bucket, max (or min) over other minibuckets.

@@ -769,7 +769,7 @@ int32_t BucketElimination::MiniBucket::GenerateSamplesXmlFilename(
 }
 
 
-int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOperator, bool ResultToFile, ARE::Function *FU, ARE::Function *fU, double WMBEweight)
+int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOperator, bool ResultToFile, bool saveToFile, ARE::Function *FU, ARE::Function *fU, double WMBEweight)
 {
 	int32_t i, j, k ;
 
@@ -969,7 +969,6 @@ goto_next_keep_value_combination :
 		fclose(fp) ;
 		}
 
-	static bool saveToFile = false ;
 	if (saveToFile && nullptr != _OutputFunction) {
 		std::string fn("bucket-output-fn.xml") ;
 		_OutputFunction->SaveToFile(fn) ;
