@@ -77,10 +77,10 @@ def test_load_from_jit(savedNN, data: NN_Data):
 
     for i in range(len(data.input_vectors)):
         columns = []
-        if data.transform_data:
-            prediction_t, true_value_t = float(data.reverse_transform(model(data.input_vectors[i]))), float(data.reverse_transform(data.values[i]))
-            columns.append([true_value_t])
-            columns.append([prediction_t])
+        # if data.transform_data:
+        #     prediction_t, true_value_t = float(data.reverse_transform(model(data.input_vectors[i]))), float(data.reverse_transform(data.values[i]))
+        #     columns.append([true_value_t])
+        #     columns.append([prediction_t])
         prediction, true_value = float(model(data.input_vectors[i])), float(data.values[i])
         columns.append([true_value])
         columns.append([prediction])
@@ -101,16 +101,16 @@ def test_load_from_jit(savedNN, data: NN_Data):
 
 
 #%%
-samples_path = '/home/cohenn1/SDBE/test_samples/samples-47;59.xml'
-data = NN_Data(samples_path, device='cuda', transform_data=False)
+samples_path = '/home/cohenn1/SDBE/samples-748.xml'
+data = NN_Data(samples_path, device='cpu')
 # data_test = NN_Data(samples_path, device='cpu', transform_data=False)
 X,Y = data.input_vectors, data.values
 # model = NN_Train.DummyNet(X,Y,'cuda')
-model = Net(data)
-t = time.time()
-model.train_model(X, Y)
-model.save_model("test_gpu_load.jit")
-print('time is ', time.time() - t)
+# model = Net(data,epochs=10000, has_constraints=True)
+# T = time.time()
+# model.train_model(X, Y)
+# model.save_model("test_gpu_load.jit")
+# print('time is ', time.time() - T)
 # with t.no_grad:
 #     preds = model(data_train.input_vectors)
 # with t.profiler.profile() as prof:
@@ -125,7 +125,7 @@ print('time is ', time.time() - t)
 # nn.train_model(batch_size=1000)
 # nn.save_model('test25;36;47.jit')
 # %%
-jit_path = 'test_gpu_load.jit'
+jit_path = '/home/cohenn1/SDBE/nn-748.jit'
 test_load_from_jit(jit_path, data)
 #%%
 

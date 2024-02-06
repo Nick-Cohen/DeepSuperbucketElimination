@@ -775,6 +775,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOper
 
 	// TODO : if _OutputFunction is of type FunctionNN, then do .....
 	ARE::FunctionNN *fNN = dynamic_cast<ARE::FunctionNN *>(_OutputFunction) ;
+	
 	if (nullptr != fNN) {
 		return ComputeOutputFunction_NN(varElimOperator, FU, fU, WMBEweight) ;
 		}
@@ -967,6 +968,20 @@ goto_next_keep_value_combination :
 	if (nullptr != fp) {
 		fwrite(sPostFix.c_str(), 1, sPostFix.length(), fp) ;
 		fclose(fp) ;
+		}
+
+	static bool saveToFile = false ;
+
+	
+	if (saveToFile && nullptr != _OutputFunction) {
+		// std::string fn("bucket-output-fn"+std::to_string(_OutputFunction->IDX())+".xml") ;
+		std::string fn("bucket-output-fn") ;
+		for (int32_t i = 0 ; i < _Vars.size() ; ++i) {
+			if (i > 0) { fn += ';';}
+			fn += std::to_string(_Vars[i]) ;
+			}
+		fn += ".xml" ;
+		_OutputFunction->SaveToFile(fn) ;
 		}
 
 	return 0 ;
