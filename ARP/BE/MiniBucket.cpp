@@ -647,7 +647,7 @@ int32_t BucketElimination::MiniBucket::SampleOutputFunction(int32_t varElimOpera
 
 	sample_sum = bews->VarEliminationDefaultValue() ;
 	int64_t ElimIdx ;
-	RNG.seed(13);
+	// RNG.seed(13);
 	for (i = 0 ; i < nSamples ; ++i) {
 		int16_t *sample_signature = samples_signature.get() + i*_OutputFunction->N() ;
 		float *sample_value = samples_values.get() + i ;
