@@ -25,17 +25,17 @@ class NN_Data:
 
     def __init__(self, file_name = None, processed_samples = None, values = None, device = 'cpu'):
         self.file_name = file_name
-        self.num_samples: int
-        self.features_per_sample: int
-        self.is_log_space: bool
-        self.max: float
-        self.min: float
-        self.sum: float # log sum of non-logspace values
-        self.signatures: t.Tensor
-        self.input_vectors: t.Tensor
-        self.values: t.Tensor
-        self.is_positive: t.BoolTensor # (num_samples,1) indicates if table has non-zero value: True or zero: False
-        self.domain_sizes: t.IntTensor
+        # self.num_samples: int
+        # self.features_per_sample: int
+        # self.is_log_space: bool
+        # self.max: float
+        # self.min: float
+        # self.sum: float # log sum of non-logspace values
+        # self.signatures: t.Tensor
+        # self.input_vectors: t.Tensor
+        # self.values: t.Tensor
+        # self.is_positive: t.BoolTensor # (num_samples,1) indicates if table has non-zero value: True or zero: False
+        # self.domain_sizes: t.IntTensor
         self.device = device
         self.max_value = None
         if file_name is not None:
@@ -84,7 +84,7 @@ class NN_Data:
         
         # Split into test and validation
         total_samples = self.num_samples
-        split_point = math.ceil(0.8 * total_samples)  # 80% for training
+        split_point = min(5000, math.ceil(0.8 * total_samples))  # min of 20% or 5000 for validation
 
         # Splitting the data into training and test sets
         self.signatures = signatures_tensor[:split_point]
@@ -96,9 +96,9 @@ class NN_Data:
         self.input_vectors_test = self.one_hot_encode(self.signatures_test).float().to(self.device)
         
         # Update the number of samples for both training and test sets
-        self.num_samples = split_point
-        self.num_samples_test = total_samples - split_point
-        self.remove_duplicates()
+        # self.remove_duplicates()
+        self.num_samples = len(self.input_vectors)
+        self.num_samples_test = len(self.input_vectors_test)
 
     def remove_duplicates(self):
         def hash_sample(sample):
@@ -137,13 +137,13 @@ class NN_Data:
 # %%
 class Net(nn.Module):
 
-    def __init__(self, nn_data: NN_Data, epochs = 1000, device = None, has_constraints=False):
+    def __init__(self, nn_data: NN_Data, epochs = 1000, device = None):
         super(Net, self).__init__()
         self.nn_data = nn_data
         self.max_value = nn_data.max_value
         self.num_samples = self.nn_data.num_samples
         self.epochs = epochs
-        self.has_constraints = has_constraints
+        self.has_constraints = float('-inf') in nn_data.values
         if device is None:
             self.device = nn_data.device
         else:
@@ -155,6 +155,7 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(input_size, hidden_size).to(self.device)
         self.fc2 = nn.Linear(hidden_size, hidden_size).to(self.device)
         self.fc3 = nn.Linear(hidden_size, output_size).to(self.device)
+        self.parameters_v = list(self.fc1.parameters()) + list(self.fc2.parameters()) + list(self.fc3.parameters())
         
         if self.has_constraints:
             self.test_values_filtered = self.nn_data.values_test[self.nn_data.values_test != float('-inf')]
@@ -162,21 +163,35 @@ class Net(nn.Module):
             self.classifier_fc1 = nn.Linear(input_size, hidden_size).to(self.device)
             self.classifier_fc2 = nn.Linear(hidden_size, hidden_size).to(self.device)
             self.classifier_fc3 = nn.Linear(hidden_size, output_size).to(self.device)
+            self.parameters_c = list(self.classifier_fc1.parameters()) + list(self.classifier_fc2.parameters()) + list(self.classifier_fc3.parameters())
             self.classifier_values = (~t.isinf(self.values)).float()
             self.classifier_values_test = (~t.isinf(self.nn_data.values_test.float().to(self.device))).float()
             self.es_classifier = False # initialize early stopping condition
             self.es_val_predictor = False
+        # Initialize classifier attributes to dummy fc1, this is probably not efficient
+        if not self.has_constraints:
+            # dummy layers that aren't used but necessary for serialization
+            self.classifier_fc1 = nn.Linear(1, 1).to(self.device)
+            self.classifier_fc2 = nn.Linear(1, 1).to(self.device)
+            self.classifier_fc3 = nn.Linear(1, 1).to(self.device)
+            # self.classifier_fc1 = t.tensor(1)
+            # self.classifier_fc2 = t.tensor(1)
+            # self.classifier_fc3 = t.tensor(1)
         
         self.activation_function = nn.Softplus().to(self.device)
  
-        # self.loss_fn = nn.MSELoss()
+        self.loss_fn = nn.MSELoss()
         # self.loss_fn = self.nbe_loss
-        self.loss_fn = self.klish_loss
+        # self.loss_fn = self.klish_loss
         if self.has_constraints:
-            self.loss_fn2 = nn.BCEWithLogitsLoss()
+            self.loss_fn2 = nn.BCEWithLogitsLoss() # delete this eventually
+            self.loss_fn_c = nn.BCEWithLogitsLoss()
         
         # self.optimizer = t.optim.SGD(self.parameters(), lr=0.01)
-        self.optimizer = t.optim.Adam(self.parameters())
+        # self.optimizer = t.optim.Adam(self.parameters())
+        self.optimizer = t.optim.Adam(self.parameters_v)
+        if self.has_constraints:
+            self.optimizer_c = t.optim.Adam(self.parameters_c)
         
         # Inialize validation loss twice previous and once previous, used for early stopping
         self.val_loss2 = sys.float_info.max
@@ -185,7 +200,7 @@ class Net(nn.Module):
             self.val_loss2_c = sys.float_info.max
             self.val_loss1_c = self.val_loss2_c/2
 
-    def forward(self, x):
+    def forward(self, x, force_positive=t.tensor(False)):
         # value predictor
         out = self.fc1(x)
         out = self.activation_function(out)
@@ -193,16 +208,32 @@ class Net(nn.Module):
         out = self.activation_function(out)
         out = self.fc3(out)
         # binary classifier
-        if self.has_constraints:
+        # debug = False
+        # if debug:
+        if self.has_constraints and not force_positive:
             out2 = self.classifier_fc1(x)
             out2 = self.activation_function(out2)
             out2 = self.classifier_fc2(out2)
             out2 = self.activation_function(out2)
             out2 = self.classifier_fc3(out2)
             out2 = t.sigmoid(out2)
-            out2 = t.round(out2)
-            out2 = t.where(out2==0, float('-inf'), 0)
+            out2 = t.round(out2) # Masked Net
+            # out2 = t.log10(out2)
+            neg_inf = t.tensor(float('-inf')).to(out2.device)
+            out2 = t.where(out2 == 0, neg_inf, t.tensor(0.))
+            # print('out dtype =', out.dtype)
+            # print('out2 dtype =', out2.dtype)
+            # print(f'out2 is {out2}')
+            # sys.exit(1)
             out = out + out2              
+        return out
+    
+    def forward_classifier(self, x):
+        out = self.classifier_fc1(x)
+        out = self.activation_function(out)
+        out = self.classifier_fc2(out)
+        out = self.activation_function(out)
+        out = self.classifier_fc3(out)
         return out
     
     def forward_train_with_constraints(self, x_filtered, x_unfiltered):
@@ -220,7 +251,7 @@ class Net(nn.Module):
         out2 = self.classifier_fc3(out2)
         return out, out2
     
-    def validate_model(self, print_loss=True):
+    def validate_model(self, print_loss=True, type=""):
         self.eval()  # set the model to evaluation mode
         with t.no_grad():
             if not self.has_constraints:
@@ -237,6 +268,8 @@ class Net(nn.Module):
                 avg_val_loss = total_val_loss / num_test_samples
                 if print_loss:
                     print('Validation Loss: {:.12f}'.format(avg_val_loss))
+                    if math.isnan(avg_val_loss):
+                        print("total_val_loss is ", total_val_loss, "num_test_samples is ", num_test_samples)
                 return avg_val_loss
             else:
                 num_test_samples_classifier = self.nn_data.num_samples_test
@@ -256,7 +289,7 @@ class Net(nn.Module):
                     print(self.classifier_values_test.view(-1, 1))
                     sys.exit()
                 if num_test_samples_filtered == 0:
-                    print("num_test_samples_filtered is zero!")
+                    print("num_test_samples_filtered is zero! ", self.nn_data.file_name)
                     avg_val_loss_filtered = 123456789
                 else:
                     avg_val_loss_filtered = total_val_loss_filtered / num_test_samples_filtered
@@ -269,7 +302,7 @@ class Net(nn.Module):
         # print(t.sum(t.log10(t.mean((y_hat - self.max_value)**10))  + self.max_value))
         # exit(1)
         # return t.sum((y-y_hat)**2)
-        return t.sum((y-y_hat)**2) + t.sum(t.log10(t.mean((y_hat - self.max_value)**10))  + self.max_value)
+        return t.sum((y-y_hat)**2) #+ t.sum(t.log10(t.mean((y_hat - self.max_value)**10))  + self.max_value)
     
     def nbe_loss(self, y_hat, y):
         # print(t.pow(1.5, y_hat - self.nn_data.max_value))
@@ -287,67 +320,40 @@ class Net(nn.Module):
         # return t.sum((y_hat - y)**2 * base ** (t.max(y_hat,y) - y))
     
     def train_model(self, X, Y, batch_size=2048):
+        # use other train method
         if self.has_constraints:
-            Y_constraints = self.classifier_values
+            self.train_model_with_constraints(X,Y,batch_size=batch_size)
+            return
+
         if self.num_samples < 256:
             batch_size = self.num_samples // 10
         tiempo = time.time()
         epochs = self.epochs
         num_batches = int(self.num_samples // batch_size)
-        print(epochs,num_batches)
+        # print(epochs,num_batches)
         previous_loss = 10e10
         early_stopping_counter = 0
         batches = []
-        if self.has_constraints:
-            batches_constraints = []
         # # Get mini-batch
         for i in range(num_batches):
             X_batch = X[i*batch_size : (i+1)*batch_size]
             values_batch = Y[i*batch_size : (i+1)*batch_size]
             if not self.has_constraints:
                 batches.append((X_batch,values_batch))
-            if self.has_constraints:
-                # Remove -inf values from X_batch and values_batch
-                X_batch_filtered = X_batch[values_batch != float('-inf')]
-                values_batch_filtered = values_batch[values_batch != float('-inf')]
-                batches.append((X_batch_filtered, values_batch_filtered))
-                
-                # Get batches for classifier
-                constraints_values_batch = Y_constraints[i*batch_size : (i+1)*batch_size]
-                batches_constraints.append((X_batch, constraints_values_batch))
                 
         for epoch in range(epochs):
             for i in range(num_batches):
-                X_batch_filtered, values_batch = batches[i]
-                if self.has_constraints:         
-                    X_batch, constraints_values_batch = batches_constraints[i]
+                X_batch, values_batch = batches[i]
 
-                # Predict if no constraints
-                if not self.has_constraints:
-                    pred_values = self(X_batch)
-                
-                # Predict if constraints
-                else:
-                    pred_values, pred_constraint = self.forward_train_with_constraints(X_batch_filtered, X_batch)
+                # Predict value
+                pred_values = self(X_batch)
 
                 # Compute loss
                 loss = self.loss_fn(pred_values, values_batch.view(-1, 1))
                 
-                # Compute loss with constraints (Binary Cross Entropy)
-                if self.has_constraints:
-                    loss2 = self.loss_fn2(pred_constraint, constraints_values_batch.unsqueeze(1))
-                #     print(pred_constraint)
-                #     print(constraints_values_batch)
-                #     print('loss is', loss2)
-                #     # sys.exit()
-                
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
-                
-                # Backprop classifier loss
-                if self.has_constraints:
-                    loss2.backward()
 
                 # Update weights
                 self.optimizer.step()
@@ -359,16 +365,121 @@ class Net(nn.Module):
                     print("Early stopping triggered.")
                     print("Train time is ", time.time() - tiempo)
                     self.validate_model(batch_size)
+                    self.display_debug_info()
                     return
-                if self.has_constraints:
-                    print('Epoch [{}/{}], Loss: {:.4f}, XEntropy loss: {:.4f}'.format(epoch+1, epochs, loss.item(), loss2.item()))
                 else:
                     print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, loss.item()))
-                # if t.isnan(loss):
-                #     print(pred_values)
-                #     print(values_batch.view(-1, 1))
-                #     sys.exit()
         print("Train time is ", time.time() - tiempo)
+        self.display_debug_info()
+        self.validate_model(batch_size)
+        
+    def train_model_with_constraints(self, X, Y, batch_size=2048):
+        if self.num_samples < 256:
+            batch_size = self.num_samples // 10
+        tiempo = time.time()
+        epochs = self.epochs
+        previous_loss = 10e10
+        early_stopping_counter = 0
+        # data for predicting the specific value
+        X_v = X[Y != float('-inf')]
+        Y_v = Y[Y != float('-inf')]
+        # deta for the classifier
+        X_c = X
+        Y_c = self.classifier_values
+        # Get batch size
+        num_batches_v = int(len(X_v) // batch_size)
+        num_batches_c = int(self.num_samples // batch_size)
+        print(f'num_batches_v is {num_batches_v} and num_batches_c is {num_batches_c} and len(X_v) is {len(X_v)} and len(X_c) is {len(X_c)}')
+        # Get mini-batches
+        batches_v = []
+        batches_c = []
+        for i in range(num_batches_v):
+            X_batch = X_v[i*batch_size : (i+1)*batch_size]
+            values_batch = Y_v[i*batch_size : (i+1)*batch_size]
+            batches_v.append((X_batch,values_batch))
+        for i in range(num_batches_c):
+            X_batch = X_c[i*batch_size : (i+1)*batch_size]
+            values_batch = Y_c[i*batch_size : (i+1)*batch_size]
+            batches_c.append((X_batch,values_batch))
+            
+        early_stop_v = False
+        early_stop_c = False
+        
+        loss_v = t.tensor(float('inf'))
+        loss_c = t.tensor(float('inf'))
+        
+        # Train loop
+        for epoch in range(epochs):
+            for i in range(num_batches_v):
+                if self.es_val_predictor:
+                    break
+                self.optimizer.zero_grad()
+                # self.optimizer_c.zero_grad()
+                x_b, y_b = batches_v[i]
+                pred = self.forward(x_b, force_positive=True)
+                loss_v = self.loss_fn(pred, y_b.view(-1,1))
+                
+                # Compute gradient via backprop
+                loss_v.backward()
+                # if epoch % 10 == 0 and i == 0:
+                #     print(f'Loss is {loss_v.item()}')
+                
+                # Update weights
+                self.optimizer.step()
+                
+                # for name, parameter in self.named_parameters():
+                #     print(f"{name} gradient: \n{parameter.grad}")
+                # sys.exit(1)
+                
+                
+                
+                
+                
+            for i in range(num_batches_c):
+                if self.es_classifier:
+                    break
+                self.optimizer.zero_grad()
+                self.optimizer_c.zero_grad()
+                x_b, y_b = batches_c[i]
+                logits = self.forward_classifier(x_b)
+                loss_c = self.loss_fn_c(logits, y_b.view(-1,1))
+                
+                # Compute gradient via backprop
+                loss_c.backward()
+                
+                # if epoch == 10:
+                #     for name, parameter in self.named_parameters():
+                #         print(f"Gradient of {name} is {parameter.grad}")
+                #     sys.exit(1)
+                # print("Before")
+                # for name, param in self.named_parameters():
+                #     print(f"{name}: {param}")
+                # Update weights
+                self.optimizer_c.step()
+
+                # print("After")
+                # for name, param in self.named_parameters():
+                #     print(f"{name}: {param}")
+                    
+                # sys.exit(1)
+                
+            
+            if (epoch+1) % 10 == 0:
+                print(f'Epoch: {epoch+1}')
+                # Early stopping
+                if self.early_stopping():
+                    print("Early stopping triggered.")
+                    print("Train time is ", time.time() - tiempo)
+                    self.validate_model(batch_size)
+                    self.display_debug_info()
+                    return
+                if self.has_constraints:
+                    # print('Epoch [{}/{}], Loss: {:.4f}, XEntropy loss: {:.4f}'.format(epoch+1, epochs, loss_v.item(), loss_c.item()))
+                    print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, loss_v.item()))
+                else:
+                    print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, loss_v.item()))
+        print("Train time is ", time.time() - tiempo)
+        self.display_debug_info()
         self.validate_model(batch_size)
         
     def early_stopping(self):
@@ -388,6 +499,7 @@ class Net(nn.Module):
             #early stopping val predictor condition
             if self.val_loss2 < self.val_loss1 and self.val_loss1 < current_validation_loss:
                 self.es_val_predictor = True
+            #early stopping classifier condition
             if self.val_loss2_c < self.val_loss1_c and self.val_loss1_c < current_validation_loss_c:
                 self.es_classifier = True
             
@@ -399,7 +511,7 @@ class Net(nn.Module):
                 self.val_loss1 = current_validation_loss
                 self.val_loss1_c = current_validation_loss_c
                 return False
-            
+              
     def prediction_error(self, input_vector, value):
         self.eval()
         with t.no_grad():
@@ -424,19 +536,26 @@ class Net(nn.Module):
         else:
             return model(input_vectors).reshape(size)
 
+    def display_debug_info(self):
+        print(f'Sample file is {self.nn_data.file_name}')
+        print(f'First hundred value predictions are')
+        for i in range(100):
+            print(f'Predicted: {self.forward(self.nn_data.input_vectors[i], force_positive=False).item()}, True value: {self.nn_data.values[i].item()}')
 
 #%%
-
-def main(file_name, nn_save_path):
+def main(file_name, nn_save_path, skip_training=False):
     data = NN_Data(file_name, device='cuda')
     
     gpu = True
     if gpu:
         print('Using GPU')
-        nn = Net(data, epochs=10000, has_constraints=True)
+        nn = Net(data, epochs=1000)
         # nn = Net(data, epochs=1000000, has_constraints=False)
-        nn.train_model(data.input_vectors, data.values)
-        nn_cpu = Net(data, device='cpu', has_constraints=True)
+        if not skip_training:
+            nn.train_model(data.input_vectors, data.values, batch_size=100)
+        else:
+            print('SKIPPING TRAINING')
+        nn_cpu = Net(data, device='cpu')
         
         # copy weights to cpu model
         model_weights = nn.state_dict()
@@ -459,7 +578,7 @@ if __name__ == "__main__":
     parser.add_argument('--nn_path', type=str, default=None, help='Path to save the trained neural network')
     parser.add_argument('--done_path', type=str, default=None, help='Path to save the training done indicator file')
     args = parser.parse_args()
-    main(args.samples, args.nn_path)
+    main(args.samples, args.nn_path, skip_training=True)
     # Indicate training is done by creating a status file
     if args.done_path == None:
         done_path = 'training-complete-'+args.samples[8:-4]+'.txt'

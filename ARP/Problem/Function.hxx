@@ -378,6 +378,9 @@ public :
 		if (_nArgs <= 0)
 			return 0;
 		int l = input.numel();
+		// if (input.scalar_type() != torch::Float || input.size(0) != l) {
+		// 	int bug = 1 ;
+		// }
 		if (_OneHotArgVectorLength <= 0 || l != _OneHotArgVectorLength) {
 			//			input = torch::zeros({ 1, _nArgs }) ;
 			//			l = input.numel();
@@ -702,6 +705,17 @@ public :
 	int32_t CheckIntegrity(void) ;
 
 public :
+
+// 2023-11-14 : we assume we have a table ... save into given file ...
+	virtual int32_t SaveToFile(std::string & FileName) ;
+
+	virtual int32_t GenerateSamplesXmlFilename(
+		const char* sSuffix, std::string& fnSamples, std::string& fnNetwork, std::string& fnFNsignalling, std::string& sPrefix, std::string& sPostFix,
+		int32_t nSamples, double samples_min_value, double samples_max_value, double samples_sum) ;
+
+
+
+
 
 	virtual void Initialize(Workspace *WS, ARP *Problem, int32_t IDX)
 	{

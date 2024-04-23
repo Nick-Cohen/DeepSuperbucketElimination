@@ -98,13 +98,36 @@ def test_load_from_jit(savedNN, data: NN_Data):
         for row in rows:
             print(' '.join('{:<12.8g}'.format(item) for item in row))
 
+def evaluate_sum_table(model, data):
+    log_sum_true = t.tensor([0.], dtype=t.float32)
+    log_sum_estimate = t.tensor([0.], dtype=t.float32)
+    for i in range(len(data.input_vectors)):
+        prediction, true_value = t.tensor([float(model(data.input_vectors[i]))], dtype=t.float32), t.tensor([float(data.values[i])], dtype=t.float32)
+        print(prediction, true_value)
+        log_sum_true += t.log(1 + t.pow(10., true_value - log_sum_true))
+        log_sum_estimate += t.log(1 + t.pow(10., prediction - log_sum_estimate))
+    print('log_sum_true is: ', log_sum_true.item(), '     log_sum_estimate is: ', log_sum_estimate.item())
+
+def filter(x, y):
+    indices = y != float('-inf')
+    return x[indices], y[indices]
+
+def test_model_speed(model, data):
+    
+    
 
 
 #%%
-samples_path = '/home/cohenn1/SDBE/samples-748.xml'
+samples_path = '/home/cohenn1/SDBE/test_samples/samples-25;34;49;73;84.xml'
+jit_path = '/home/cohenn1/SDBE/test_samples/nn-25;34;49;73;84.jit'
 data = NN_Data(samples_path, device='cpu')
 # data_test = NN_Data(samples_path, device='cpu', transform_data=False)
 X,Y = data.input_vectors, data.values
+# model = Net(data,device='cuda')
+# model.train_model(X,Y)
+# evaluate_sum_table(model, data)
+test_load_from_jit(jit_path, data)
+#%%
 # model = NN_Train.DummyNet(X,Y,'cuda')
 # model = Net(data,epochs=10000, has_constraints=True)
 # T = time.time()
@@ -124,10 +147,7 @@ X,Y = data.input_vectors, data.values
 # nn = Net(data_train, epochs = 1000)
 # nn.train_model(batch_size=1000)
 # nn.save_model('test25;36;47.jit')
-# %%
-jit_path = '/home/cohenn1/SDBE/nn-748.jit'
-test_load_from_jit(jit_path, data)
-#%%
+
 
 
 # #%%

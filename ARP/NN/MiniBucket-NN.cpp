@@ -6,6 +6,7 @@
 #include <chrono>
 #include <random>
 #include <cstdlib>
+#include <chrono>
 
 #if defined WINDOWS || _WINDOWS
 #include <windows.h>
@@ -31,6 +32,29 @@
 #include <Function-NN.hxx>
 #include "NNConfig.h"
 #include "DATA_SAMPLES.h"
+
+#include <iostream>
+#include <sstream>
+
+void printTensor(const torch::Tensor& tensor, const std::string& indent = "") {
+    if (tensor.dim() == 0) {
+        // Scalar tensor (0-dimensional)
+        auto scalar_tensor = tensor.item();
+        if (tensor.scalar_type() == torch::kInt) {
+            std::cout << scalar_tensor.toInt() << std::endl;
+        } else if (tensor.scalar_type() == torch::kFloat) {
+            std::cout << scalar_tensor.toFloat() << std::endl;
+        } else if (tensor.scalar_type() == torch::kDouble) {
+            std::cout << scalar_tensor.toDouble() << std::endl;
+        } // Add more types as necessary
+    } else {
+        std::cout << indent << "[" << std::endl;
+        for (int64_t i = 0; i < tensor.size(0); ++i) {
+            printTensor(tensor[i], indent + "  ");
+        }
+        std::cout << indent << "]" << std::endl;
+    }
+}
 
 int32_t ARE::FunctionNN::CreateNNtensor(void)
 {
@@ -58,6 +82,39 @@ ARE_Function_TableType ARE::FunctionNN::TableEntryExNativeAssignment(int32_t* Na
 	int32_t res = FillInOneHotNNinput_wrtNativeAssignemnt(_input, NativeAssignment, DomainSizes) ;
 	if (0 != res)
 		return out_value;
+		
+	// for (const auto& ivalue : _inputs) {
+	// 	if (ivalue.isTensor()) {
+	// 		std::cout << "Tensor size: " << ivalue.toTensor().sizes() << std::endl;
+	// 	}
+	// }
+	// printf("\n Size = %d SizeNN = %d", (int)_inputs.size(), _nArgs) ;
+	// for (int i=0; i < _inputs.size(); i++) {
+	// 	printf("\nGot to this point0000\n") ;
+	// 	std::cout.flush();
+	// 	torch::jit::IValue& j = _inputs[i];
+	// 	if (j.isTensor())
+	// 		printTensor((torch::Tensor&)j) ;
+	// 	else {
+	// 		printf("\nJ is not a tensor\n");
+	// 		std::cout.flush();
+	// 	}
+	// 	printf("\nGot to this point\n") ;
+	// 	std::cout.flush();
+	// 	// auto list = j.toListRef();
+	// 	// printf("List size is: %d\n", (int)list.size()) ;
+	// 	// std::cout.flush();
+	// 	// for (int k=0; k < list.size(); k++) {
+	// 	// 	printf(" %s\n", list[k].toStringRef().c_str()) ;
+	// 	// }
+	// }
+	// printf("\n ABC\n");
+	// printTensor(_inputs[0]) ;
+	// std::cout.flush();
+
+
+	_model.eval();
+	torch::NoGradGuard no_grad;
 	at::Tensor output = _model.forward(_inputs).toTensor();
 	void* ptr = output.data_ptr();
 	float* e = (float*)ptr;
@@ -114,6 +171,8 @@ int32_t CheckFileExists(const char *filename)
 
 int32_t WaitForFile(const char *filename, int64_t TimeoutInMSec, int64_t SleepTimeInMSec /* 100 */, int64_t & dtWaitPeriod)
 {
+	printf("Waiting for NN\n");
+	std::cout.flush();
 	dtWaitPeriod = 0 ;
 	int32_t resFileExists = CheckFileExists(filename) ;
 	if (0 == resFileExists)
@@ -185,7 +244,14 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	{
 		std::random_device rd ;
 		uint32_t seed = rd() ;
+		// Get time for sample generation
+		auto startTime = std::chrono::high_resolution_clock::now();
 		int32_t resSampling = SampleOutputFunction(varElimOp, nSamples, seed, nFeaturesPerSample, samples_signature, samples_values, samples_min_value, samples_max_value, samples_sum) ;
+		// Print time to finish sample generation
+		auto endTime = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = endTime - startTime;
+		printf("Sample generation time: %.2f seconds.\n", elapsed.count());
+		std::cout.flush();
 	}
 
 	// write samples into xml file...
@@ -196,6 +262,8 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 	char* buf = sBUF.get();
 	{
 		std::string s, sPrefix, sPostFix ;
+		// Get time for sample file writing
+		auto startTime = std::chrono::high_resolution_clock::now();
 		GenerateSamplesXmlFilename(nullptr, sFNsamples, sFNnn, sFNsignalling, sPrefix, sPostFix, nSamples, samples_min_value, samples_max_value, samples_sum) ;
 		FILE *fp = fopen(sFNsamples.c_str(), "w") ;
 		fwrite(sPrefix.c_str(), 1, sPrefix.length(), fp) ;
@@ -211,6 +279,9 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 			}
 		fwrite(sPostFix.c_str(), 1, sPostFix.length(), fp) ;
 		fclose(fp) ;
+		auto endTime = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = endTime - startTime;
+		printf("Sample file writing time: %.2f seconds.\n", elapsed.count());
 	}
 
 // sFNnn = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\nn-202-cpu.jit";
@@ -220,7 +291,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 // sFNsignalling = "C:\\UCI\\DeepSuperbucketElimination-Nick-github\\problems\\ready-202.jit";
 
 	// construct command line string
-	sprintf(buf, "python3 /home/cohenn1/SDBE/Super_Buckets/ARP/NN/NN_Train.py --samples \"%s\" --nn_path \"%s\" --done_path \"%s\"", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
+	sprintf(buf, "python3 /home/cohenn1/SDBE/Super_Buckets/ARP/NN/NN_Train.py --samples \"%s\" --nn_path \"%s\" --done_path \"%s\"\n", sFNsamples.c_str(), sFNnn.c_str(), sFNsignalling.c_str());
 	// just in case delete signalling file...
 //	DeleteFile(sFNsignalling.c_str());
 	// launch python training script
@@ -254,6 +325,6 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 		printf("\nERROR : failed to find file %s", sFNnn.c_str());
 		exit(99);
 		}
-
+	std::cout.flush() ;
     return 0 ;
 }

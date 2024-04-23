@@ -85,6 +85,56 @@ double logabsdiffexp10(double num1, double num2) {
 
 int32_t main(int32_t argc, char* argv[])
 {
+	// // Test Load from jit
+    // // Use torch::jit::load to load the model.
+    // torch::jit::script::Module module;
+    // try {
+    //     // Deserialize the ScriptModule from a file using torch::jit::load().
+    //     module = torch::jit::load("/home/cohenn1/SDBE/test_samples/nn-25;34;49;73;84.jit");
+    // }
+    // catch (const c10::Error& e) {
+    //     std::cerr << "Error loading the model.\n";
+    //     return -1;
+    // }
+
+    // std::cout << "Model loaded.\n";
+
+	// // Check for CUDA availability and move the model to GPU
+    // if (torch::cuda::is_available()) {
+    //     std::cout << "CUDA is available! Moving model to the GPU.\n";
+    //     module.to(torch::kCUDA);
+    // } else {
+    //     std::cout << "CUDA not available. Running on CPU.\n";
+    // }
+
+    // // Create a vector of inputs.
+    // std::vector<torch::jit::IValue> inputs;
+    // // Create a tensor for a batch size of 3 with the input data
+    //     torch::Tensor input_batch = torch::tensor({
+    //     {1, 0, 0, 0, 0, 0, 0, 0, 0},  // First sample
+    //     {0, 1, 0, 0, 0, 0, 0, 0, 0},  // Second sample
+    //     {0, 0, 1, 0, 0, 0, 0, 0, 0}   // Third sample
+    // }).to(torch::kFloat32);
+
+	// if (torch::cuda::is_available()) {
+    //     input_batch = input_batch.to(torch::kCUDA);
+    // }
+
+	// // Push the batch of tensors as a single IValue.
+    // inputs.push_back(input_batch);
+
+    // // Execute the model and turn its output into a tensor.
+    // at::Tensor output = module.forward(inputs).toTensor();
+
+	// // Move output back to CPU for printing if on GPU.
+	// if (output.device().is_cuda()) {
+    //     output = output.to(torch::kCPU);
+    // }
+
+    // // Print outputs.
+    // std::cout << "Output: " << output << std::endl;
+
+    // return 0;
 /*
 #ifdef INCLUDE_TORCH
 	torch::Tensor tensor2 = torch::eye(3);
@@ -284,26 +334,41 @@ bool isT = ip.isTensor() ;
 	int32_t maxNumProcessorThreads = std::thread::hardware_concurrency() ; // this requires c++11
 	if (maxNumProcessorThreads <= 0)
 		maxNumProcessorThreads = 1 ;
+	printf("1111");
+	fflush(stdout) ;
 
 	if (0 == problem_filename.length() || 0 == vo_filename.length())
 		return 1 ;
 
 	ARE::ARP p("mbe") ;
+	printf("2222");
+	fflush(stdout) ;
 //	p.SetOperators(FN_COBINATION_TYPE_PROD, VAR_ELIMINATION_TYPE_SUM) ;
 	int32_t res_setQ = p.SetOperators(sQuery.c_str()) ;
+	printf("3333");
+	fflush(stdout) ;
 	if (0 != res_setQ) {
 		printf("\nInvalid query(%s)", sQuery.c_str()) ;
 		return 1 ;
 		}
+	printf("4444");
+	fflush(stdout) ;
 	int32_t resLoad = p.LoadFromFile(problem_filename) ;
 	if (0 != resLoad)
 		return 10 ;
+	printf("5555");
+	fflush(stdout) ;
 	int32_t resPostCA = p.PerformPostConstructionAnalysis() ;
+	printf("6666");
+	fflush(stdout) ;
 	if (0 != resPostCA)
 		return 11 ;
+	printf("7777");
+	fflush(stdout) ;
 	printf("\nproblem_filename = %s, order file = %s", problem_filename.c_str(), vo_filename.c_str()) ;
 	printf("\niB = %d, EClimit = %d", iB, EClimit) ;
 	printf("\nProblem loaded : nVars=%d minK=%d maxK=%d avgK=%g", p.N(), p.minK(), p.maxK(), p.avgK()) ;
+	fflush(stdout) ;
 	if (iB > p.N())
 		iB = p.N() ;
 	if (vQuery >= 0 && vQuery < p.N()) 
@@ -457,6 +522,7 @@ bool isT = ip.isTensor() ;
 	catch (...) {
 		// if MBE failed, because out of memory, exception may be thrown; we will land here then.
 		int32_t MBE_memory_error = 1 ;
+		printf("\nComputeOutputFunction Exception");
 		}
 	time_t tEnd = 0 ; time(&tEnd) ;
 	int64_t tElapsed = tEnd - tStart ;
