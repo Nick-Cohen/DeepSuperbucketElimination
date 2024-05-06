@@ -770,7 +770,7 @@ int32_t BucketElimination::MiniBucket::GenerateSamplesXmlFilename(
 }
 
 
-int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOperator, bool ResultToFile, ARE::Function *FU, ARE::Function *fU, double WMBEweight)
+int32_t BucketElimination::MiniBucket::ComputeOutputFunction(int32_t varElimOperator, bool ResultToFile, bool saveToFile, ARE::Function *FU, ARE::Function *fU, double WMBEweight)
 {
 	int32_t i, j, k ;
 

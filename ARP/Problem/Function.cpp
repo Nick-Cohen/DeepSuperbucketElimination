@@ -9,6 +9,7 @@
 #include "Function.hxx"
 #include "Bucket.hxx"
 #include "MBEworkspace.hxx"
+#include "MBEworkspace.hxx"
 
 static MTRand RNG ;
 

@@ -231,7 +231,7 @@ int32_t BucketElimination::MiniBucket::ComputeOutputFunction_NN(int32_t varElimO
 
 	// for testing, saving superbuckets output for xml file...
 	if (false) {
-		int32_t res = ComputeOutputFunction(varElimOperator, true, nullptr, nullptr, DBL_MAX) ;
+		int32_t res = ComputeOutputFunction(varElimOperator, true, false, nullptr, nullptr, DBL_MAX) ;
 		int32_t done = 1 ;
 		}
 
