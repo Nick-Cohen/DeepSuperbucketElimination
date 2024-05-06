@@ -578,7 +578,7 @@ if __name__ == "__main__":
     parser.add_argument('--nn_path', type=str, default=None, help='Path to save the trained neural network')
     parser.add_argument('--done_path', type=str, default=None, help='Path to save the training done indicator file')
     args = parser.parse_args()
-    main(args.samples, args.nn_path, skip_training=True)
+    main(args.samples, args.nn_path, skip_training=False)
     # Indicate training is done by creating a status file
     if args.done_path == None:
         done_path = 'training-complete-'+args.samples[8:-4]+'.txt'

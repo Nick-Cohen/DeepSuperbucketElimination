@@ -112,7 +112,7 @@ def filter(x, y):
     indices = y != float('-inf')
     return x[indices], y[indices]
 
-def test_model_speed(model, data):
+# def test_model_speed(model, data):
     
     
 
