@@ -334,37 +334,23 @@ bool isT = ip.isTensor() ;
 	int32_t maxNumProcessorThreads = std::thread::hardware_concurrency() ; // this requires c++11
 	if (maxNumProcessorThreads <= 0)
 		maxNumProcessorThreads = 1 ;
-	printf("1111");
-	fflush(stdout) ;
 
 	if (0 == problem_filename.length() || 0 == vo_filename.length())
 		return 1 ;
 
 	ARE::ARP p("mbe") ;
-	printf("2222");
-	fflush(stdout) ;
 //	p.SetOperators(FN_COBINATION_TYPE_PROD, VAR_ELIMINATION_TYPE_SUM) ;
 	int32_t res_setQ = p.SetOperators(sQuery.c_str()) ;
-	printf("3333");
-	fflush(stdout) ;
 	if (0 != res_setQ) {
 		printf("\nInvalid query(%s)", sQuery.c_str()) ;
 		return 1 ;
 		}
-	printf("4444");
-	fflush(stdout) ;
 	int32_t resLoad = p.LoadFromFile(problem_filename) ;
 	if (0 != resLoad)
 		return 10 ;
-	printf("5555");
-	fflush(stdout) ;
 	int32_t resPostCA = p.PerformPostConstructionAnalysis() ;
-	printf("6666");
-	fflush(stdout) ;
 	if (0 != resPostCA)
 		return 11 ;
-	printf("7777");
-	fflush(stdout) ;
 	printf("\nproblem_filename = %s, order file = %s", problem_filename.c_str(), vo_filename.c_str()) ;
 	printf("\niB = %d, EClimit = %d", iB, EClimit) ;
 	printf("\nProblem loaded : nVars=%d minK=%d maxK=%d avgK=%g", p.N(), p.minK(), p.maxK(), p.avgK()) ;
@@ -387,7 +373,6 @@ bool isT = ip.isTensor() ;
 	int32_t resELDV = p.EliminateSingletonDomainVariables() ;
 	if (0 != resELDV)
 		return 30 ;
-
 	// load vo
 	{
 		FILE *fpVO = fopen(vo_filename.c_str(), "rb") ;
@@ -490,7 +475,6 @@ bool isT = ip.isTensor() ;
 			return 62 ;
 			}
 		}
-
 	// compute MBE induced_width; this takes into account actual i-bound
 	int32_t resMBEindw = ws.ComputeMaxNumVarsInBucket(true) ;
 	if (0 != resMBEindw) {
